@@ -1310,12 +1310,17 @@
         render();
       }
 
-      function syncEditor() {
+      function syncEditor(skipTs) {
         const t = state.tabs.find((t) => t.id === state.active);
         if (!t) return;
+        const oldTitle = t.title;
+        const oldContent = t.content;
         t.title = $("titleInput").value || "Untitled";
         if (t.type !== "task") t.content = $("editor").innerHTML;
-        t.ts = Date.now();
+        // Only bump timestamp when content actually changed (not on periodic sync)
+        if (!skipTs && (t.title !== oldTitle || t.content !== oldContent)) {
+          t.ts = Date.now();
+        }
       }
 
       function duplicateTab(id) {
@@ -2007,7 +2012,7 @@
         isSyncing = true;
         setSyncDot("syncing");
         try {
-          syncEditor();
+          syncEditor(true);
           console.log("[Sync] pulling from gist…");
           const remote = await pullFromGist();
           console.log(
