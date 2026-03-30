@@ -1,0 +1,29 @@
+{
+  "name": "notes",
+  "version": "1.0.0",
+  "description": "Always-on-top floating notes panel with tabs",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --mac",
+    "dist": "electron-builder --mac --dir"
+  },
+  "author": "Tomas Batalha",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "com.tomasbatalha.notes",
+    "productName": "Notes",
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "assets/icon.icns",
+      "target": "dir"
+    },
+    "directories": {
+      "output": "dist"
+    }
+  }
+}

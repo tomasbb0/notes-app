@@ -1,0 +1,2124 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="theme-color" content="#111111" />
+    <title>Notes</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23000'/><text x='50' y='72' font-size='60' font-weight='900' fill='white' text-anchor='middle'>N</text></svg>"
+    />
+    <style>
+      :root {
+        --accent: #fff;
+        --text: #e0e0e0;
+        --muted: #888;
+        --bg: #111;
+        --card: #1a1a1a;
+        --border: #2a2a2a;
+        --safe-top: env(safe-area-inset-top, 0px);
+        --safe-bottom: env(safe-area-inset-bottom, 0px);
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: -apple-system, "SF Pro Display", system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        font-size: 14px;
+        overflow-x: hidden;
+        height: 100vh;
+        height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        -webkit-text-size-adjust: 100%;
+      }
+
+      /* ═══ HEADER ═══ */
+      .header {
+        background: linear-gradient(135deg, #0d0d0d, #1a1a1a);
+        padding: 0 14px;
+        padding-top: var(--safe-top);
+        height: calc(44px + var(--safe-top));
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid var(--border);
+        user-select: none;
+        flex-shrink: 0;
+      }
+      .header-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .header-logo {
+        width: 22px;
+        height: 22px;
+        border-radius: 5px;
+        background: #000;
+        border: 1px solid #333;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 900;
+        font-size: 12px;
+        color: #fff;
+      }
+      .header h1 {
+        font-size: 12px;
+        font-weight: 800;
+        color: #fff;
+        letter-spacing: 1.5px;
+      }
+      .header-right {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .header-btn {
+        background: none;
+        border: none;
+        color: #666;
+        cursor: pointer;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 15px;
+        transition: all 0.15s;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .header-btn:hover,
+      .header-btn:active {
+        background: #222;
+        color: #fff;
+      }
+
+      /* ═══ SYNC INDICATOR ═══ */
+      .sync-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        transition: background 0.3s;
+      }
+      .sync-dot.off {
+        background: #333;
+      }
+      .sync-dot.synced {
+        background: #4a4;
+      }
+      .sync-dot.syncing {
+        background: #f90;
+        animation: pulse 1s infinite;
+      }
+      .sync-dot.error {
+        background: #f44;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
+
+      /* ═══ SETTINGS DROPDOWN ═══ */
+      .settings-dropdown {
+        display: none;
+        position: absolute;
+        top: calc(42px + var(--safe-top));
+        right: 10px;
+        background: #1e1e1e;
+        border: 1px solid #333;
+        border-radius: 10px;
+        padding: 4px;
+        min-width: 200px;
+        z-index: 9999;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      }
+      .settings-dropdown.show {
+        display: block;
+      }
+      .settings-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        text-align: left;
+        background: none;
+        border: none;
+        color: #ccc;
+        padding: 8px 12px;
+        font-size: 13px;
+        cursor: pointer;
+        border-radius: 6px;
+        gap: 8px;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .settings-item:hover,
+      .settings-item:active {
+        background: #333;
+        color: #fff;
+      }
+      .toggle-pill {
+        width: 32px;
+        height: 18px;
+        border-radius: 9px;
+        background: #333;
+        position: relative;
+        transition: background 0.2s;
+        flex-shrink: 0;
+      }
+      .toggle-pill.on {
+        background: #4a4;
+      }
+      .toggle-pill::after {
+        content: "";
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #666;
+        transition: all 0.2s;
+      }
+      .toggle-pill.on::after {
+        left: 16px;
+        background: #fff;
+      }
+
+      /* ═══ SYNC SETUP MODAL ═══ */
+      .sync-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 10001;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+      .sync-modal.show {
+        display: flex;
+      }
+      .sync-modal-box {
+        background: #1a1a1a;
+        border: 1px solid #333;
+        border-radius: 14px;
+        padding: 20px;
+        width: 100%;
+        max-width: 360px;
+        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+      }
+      .sync-modal-box h3 {
+        font-size: 16px;
+        color: #fff;
+        margin-bottom: 4px;
+      }
+      .sync-modal-box .subtitle {
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 16px;
+      }
+      .sync-modal-box label {
+        font-size: 11px;
+        color: #888;
+        display: block;
+        margin-bottom: 4px;
+        margin-top: 12px;
+      }
+      .sync-modal-box input {
+        width: 100%;
+        background: #111;
+        border: 1px solid #333;
+        color: #fff;
+        padding: 10px 12px;
+        border-radius: 8px;
+        font-size: 13px;
+        outline: none;
+        font-family: monospace;
+      }
+      .sync-modal-box input:focus {
+        border-color: #4a4;
+      }
+      .sync-modal-box input::placeholder {
+        color: #444;
+      }
+      .sync-modal-btns {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+        margin-top: 16px;
+      }
+      .sync-modal-btns button {
+        padding: 8px 16px;
+        border-radius: 8px;
+        border: 1px solid #333;
+        background: #1a1a1a;
+        color: #ccc;
+        font-size: 13px;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .sync-modal-btns button:hover {
+        background: #333;
+        color: #fff;
+      }
+      .sync-modal-btns button.primary {
+        background: #2a6a2a;
+        border-color: #3a8a3a;
+        color: #fff;
+      }
+      .sync-modal-btns button.primary:hover {
+        background: #3a8a3a;
+      }
+      .sync-modal-btns button.danger {
+        background: #4a1a1a;
+        border-color: #7a2a2a;
+        color: #f88;
+      }
+      .sync-modal-btns button.danger:hover {
+        background: #6a2a2a;
+      }
+      .sync-status-msg {
+        font-size: 11px;
+        margin-top: 8px;
+        padding: 6px 8px;
+        border-radius: 6px;
+      }
+      .sync-status-msg.error {
+        background: #2a1111;
+        color: #f66;
+      }
+      .sync-status-msg.success {
+        background: #112a11;
+        color: #6f6;
+      }
+
+      /* ═══ TAB BAR ═══ */
+      .tabs {
+        display: flex;
+        gap: 4px;
+        padding: 8px 10px;
+        background: #0d0d0d;
+        border-bottom: 1px solid var(--border);
+        overflow-x: auto;
+        align-items: center;
+        flex-shrink: 0;
+        -webkit-overflow-scrolling: touch;
+      }
+      .tabs::-webkit-scrollbar {
+        height: 0;
+      }
+      .tab {
+        flex-shrink: 0;
+        padding: 6px 12px;
+        text-align: center;
+        font-size: 11px;
+        font-weight: 700;
+        color: #666;
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.15s;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        white-space: nowrap;
+        max-width: 160px;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .tab:hover {
+        color: #aaa;
+        background: #1a1a1a;
+      }
+      .tab.active {
+        background: #fff;
+        color: #111;
+        border-color: #fff;
+      }
+      .tab-label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .tab .tab-x {
+        font-size: 10px;
+        color: #555;
+        cursor: pointer;
+        padding: 2px 4px;
+        border-radius: 3px;
+        display: none;
+        flex-shrink: 0;
+        margin-left: 2px;
+      }
+      .tab:hover .tab-x,
+      .tab.active .tab-x {
+        display: inline;
+      }
+      .tab.active .tab-x {
+        color: #999;
+      }
+      .tab .tab-x:hover {
+        color: #f44;
+        background: rgba(255, 68, 68, 0.15);
+      }
+      .tab-add {
+        flex-shrink: 0;
+        background: none;
+        border: 1px dashed #333;
+        color: #555;
+        font-size: 15px;
+        font-weight: 400;
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .tab-add:hover {
+        border-color: #666;
+        color: #fff;
+        background: #222;
+      }
+      .tab-rename-input {
+        background: transparent;
+        border: none;
+        border-bottom: 1px solid #555;
+        color: inherit;
+        font-size: inherit;
+        font-weight: inherit;
+        font-family: inherit;
+        padding: 0;
+        border-radius: 0;
+        outline: none;
+        width: 100%;
+        min-width: 30px;
+      }
+
+      /* ═══ TITLE BAR ═══ */
+      .title-bar,
+      .title-input {
+        display: none;
+      }
+      .save-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #4a4;
+        flex-shrink: 0;
+        transition: background 0.3s;
+        position: absolute;
+        top: 16px;
+        right: 60px;
+      }
+      .save-dot.dirty {
+        background: #f90;
+      }
+
+      /* ═══ FORMAT BAR ═══ */
+      .format-bar {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        padding: 6px 8px;
+        background: #0d0d0d;
+        border-bottom: 1px solid var(--border);
+        flex-shrink: 0;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .format-bar.hidden {
+        display: none;
+      }
+      .format-bar::-webkit-scrollbar {
+        height: 0;
+      }
+      .fmt-btn {
+        background: none;
+        border: 1px solid transparent;
+        color: #666;
+        cursor: pointer;
+        min-width: 30px;
+        height: 30px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 600;
+        transition: all 0.15s;
+        flex-shrink: 0;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .fmt-btn:hover,
+      .fmt-btn:active {
+        background: #222;
+        color: #fff;
+      }
+      .fmt-btn.active {
+        background: #333;
+        color: #fff;
+        border-color: #555;
+      }
+      .fmt-sep {
+        width: 1px;
+        height: 20px;
+        background: #2a2a2a;
+        margin: 0 2px;
+        flex-shrink: 0;
+      }
+      .fmt-select {
+        background: #1a1a1a;
+        border: 1px solid #333;
+        color: #aaa;
+        font-size: 12px;
+        padding: 4px 6px;
+        border-radius: 6px;
+        outline: none;
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+      .fmt-color {
+        width: 26px;
+        height: 26px;
+        border: 1px solid #333;
+        border-radius: 6px;
+        padding: 0;
+        cursor: pointer;
+        background: none;
+        overflow: hidden;
+        flex-shrink: 0;
+        position: relative;
+      }
+      .fmt-color input[type="color"] {
+        position: absolute;
+        top: -2px;
+        left: -2px;
+        width: 32px;
+        height: 32px;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        opacity: 0;
+      }
+      .fmt-color.text-color {
+        background: #e0e0e0;
+      }
+      .fmt-color.highlight-color {
+        background: #444;
+      }
+
+      /* ═══ EDITOR ═══ */
+      .editor {
+        flex: 1;
+        width: 100%;
+        background: var(--bg);
+        color: var(--text);
+        border: none;
+        outline: none;
+        padding: 12px 16px;
+        font-family: -apple-system, "SF Pro Display", system-ui, sans-serif;
+        font-size: 15px;
+        line-height: 1.7;
+        overflow-y: auto;
+        word-wrap: break-word;
+        white-space: pre-wrap;
+        -webkit-overflow-scrolling: touch;
+      }
+      .editor:empty::before {
+        content: "Start typing…";
+        color: #2a2a2a;
+      }
+      .editor::-webkit-scrollbar {
+        width: 4px;
+      }
+      .editor::-webkit-scrollbar-thumb {
+        background: #333;
+        border-radius: 2px;
+      }
+      .editor a {
+        color: #6af;
+        text-decoration: underline;
+        cursor: pointer;
+      }
+      .editor ul,
+      .editor ol {
+        margin: 4px 0;
+        padding-left: 24px;
+      }
+      .editor li {
+        margin: 2px 0;
+      }
+
+      /* ═══ LINK MODAL ═══ */
+      .link-modal {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #1e1e1e;
+        border: 1px solid #444;
+        border-radius: 12px;
+        padding: 16px;
+        z-index: 10000;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+        width: 90%;
+        max-width: 300px;
+      }
+      .link-modal.show {
+        display: block;
+      }
+      .link-modal h3 {
+        font-size: 14px;
+        color: #fff;
+        margin-bottom: 12px;
+      }
+      .link-modal input {
+        width: 100%;
+        background: #111;
+        border: 1px solid #333;
+        color: #fff;
+        padding: 8px 10px;
+        border-radius: 8px;
+        font-size: 13px;
+        outline: none;
+        margin-bottom: 8px;
+      }
+      .link-modal input:focus {
+        border-color: #6af;
+      }
+      .link-modal-btns {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+      .link-modal-btns button {
+        padding: 6px 14px;
+        border-radius: 6px;
+        border: 1px solid #333;
+        background: #1a1a1a;
+        color: #ccc;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      .link-modal-btns button.primary {
+        background: #2563eb;
+        border-color: #2563eb;
+        color: #fff;
+      }
+
+      /* ═══ STATUS BAR ═══ */
+      .status {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 6px 14px;
+        padding-bottom: calc(6px + var(--safe-bottom));
+        background: #0a0a0a;
+        border-top: 1px solid var(--border);
+        font-size: 10px;
+        color: #555;
+        flex-shrink: 0;
+      }
+      .status-left,
+      .status-right {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      /* ═══ EMPTY STATE ═══ */
+      .empty {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #333;
+        gap: 12px;
+      }
+      .empty-icon {
+        font-size: 42px;
+        opacity: 0.3;
+      }
+      .empty p {
+        font-size: 13px;
+      }
+      .empty button {
+        background: #1a1a1a;
+        border: 1px solid #333;
+        color: #888;
+        padding: 8px 20px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      /* ═══ TASK VIEW ═══ */
+      .task-view {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .task-list {
+        flex: 1;
+        overflow-y: auto;
+        padding: 8px 10px;
+        -webkit-overflow-scrolling: touch;
+      }
+      .task-list::-webkit-scrollbar {
+        width: 4px;
+      }
+      .task-list::-webkit-scrollbar-thumb {
+        background: #333;
+        border-radius: 2px;
+      }
+      .task-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        margin-bottom: 4px;
+        border: 1px solid #2a2a2a;
+        border-radius: 10px;
+        background: #111;
+        transition:
+          background 0.15s,
+          border-color 0.15s;
+        user-select: none;
+      }
+      .task-row:hover {
+        border-color: #444;
+      }
+      .task-num {
+        font-size: 11px;
+        font-weight: 800;
+        color: #444;
+        min-width: 18px;
+        text-align: center;
+        flex-shrink: 0;
+      }
+      .task-text {
+        flex: 1;
+        background: none;
+        border: none;
+        color: var(--text);
+        font-size: 14px;
+        font-family: inherit;
+        outline: none;
+        padding: 0;
+      }
+      .task-text::placeholder {
+        color: #333;
+      }
+      .task-actions {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex-shrink: 0;
+      }
+      .task-icon-btn {
+        background: none;
+        border: none;
+        color: #444;
+        cursor: pointer;
+        font-size: 14px;
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .task-icon-btn:hover,
+      .task-icon-btn:active {
+        background: #222;
+        color: #fff;
+      }
+      .task-add-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px;
+        margin: 4px 10px 8px;
+        flex-shrink: 0;
+      }
+      .task-add-btn {
+        background: none;
+        border: 1px dashed #2a4a6a;
+        color: #3498db;
+        font-size: 18px;
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .task-add-btn:hover {
+        background: #1a2a3a;
+        border-color: #3498db;
+        color: #6af;
+      }
+
+      /* ═══ CONTEXT MENU ═══ */
+      .ctx {
+        display: none;
+        position: fixed;
+        background: #1e1e1e;
+        border: 1px solid #333;
+        border-radius: 10px;
+        padding: 4px;
+        min-width: 160px;
+        z-index: 9999;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      }
+      .ctx.show {
+        display: block;
+      }
+      .ctx-item {
+        display: block;
+        width: 100%;
+        text-align: left;
+        background: none;
+        border: none;
+        color: #ccc;
+        padding: 8px 12px;
+        font-size: 13px;
+        cursor: pointer;
+        border-radius: 6px;
+      }
+      .ctx-item:hover,
+      .ctx-item:active {
+        background: #333;
+        color: #fff;
+      }
+      .ctx-sep {
+        height: 1px;
+        background: #333;
+        margin: 3px 0;
+      }
+
+      /* Tab drag styles */
+      .tab.tab-dragging {
+        opacity: 0.5;
+      }
+      .tab.tab-drag-over {
+        border-left: 2px solid #3498db !important;
+      }
+
+      /* ═══ MOBILE TWEAKS ═══ */
+      @media (max-width: 480px) {
+        .header h1 {
+          font-size: 11px;
+        }
+        .editor {
+          font-size: 16px;
+          padding: 12px;
+        }
+        .fmt-btn {
+          min-width: 34px;
+          height: 34px;
+        }
+        .tab {
+          padding: 7px 10px;
+          font-size: 11px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- HEADER -->
+    <div class="header" id="hdr">
+      <div class="header-left">
+        <div class="header-logo">N</div>
+        <h1>NOTES</h1>
+      </div>
+      <div class="header-right">
+        <div
+          class="sync-dot off"
+          id="syncDot"
+          title="Sync not configured"
+        ></div>
+        <button
+          class="header-btn"
+          id="syncNowBtn"
+          title="Sync now"
+          style="font-size: 16px"
+        >
+          ⟳
+        </button>
+        <button
+          class="header-btn"
+          id="settingsBtn"
+          title="Settings"
+          style="font-size: 20px; color: #555"
+        >
+          ⚙︎
+        </button>
+      </div>
+    </div>
+
+    <!-- SETTINGS DROPDOWN -->
+    <div class="settings-dropdown" id="settingsDropdown">
+      <button class="settings-item" id="fmtToggleBtn">
+        <span>Format bar</span>
+        <div class="toggle-pill" id="fmtPill"></div>
+      </button>
+      <button class="settings-item" id="openSyncSettings">
+        <span>☁️ Sync settings</span>
+        <span style="font-size: 10px; color: #666" id="syncConfigLabel"
+          >Not set up</span
+        >
+      </button>
+    </div>
+
+    <!-- SYNC SETUP MODAL -->
+    <div class="sync-modal" id="syncModal">
+      <div class="sync-modal-box">
+        <h3>☁️ GitHub Sync</h3>
+        <p class="subtitle">
+          Sync your notes across devices via a private GitHub Gist
+        </p>
+
+        <label>GitHub Personal Access Token</label>
+        <input
+          id="syncTokenInput"
+          type="password"
+          placeholder="ghp_xxxxxxxxxxxx"
+          autocomplete="off"
+        />
+        <p style="font-size: 10px; color: #555; margin-top: 4px">
+          Create at
+          <a
+            href="https://github.com/settings/tokens/new?scopes=gist&description=Notes+App+Sync"
+            target="_blank"
+            style="color: #6af"
+            >github.com/settings/tokens</a
+          >
+          with <b>gist</b> scope
+        </p>
+
+        <label
+          >Gist ID
+          <span style="color: #555">(leave blank to create new)</span></label
+        >
+        <input
+          id="syncGistInput"
+          placeholder="auto-created if empty"
+          autocomplete="off"
+        />
+
+        <div
+          id="syncStatusMsg"
+          class="sync-status-msg"
+          style="display: none"
+        ></div>
+
+        <div class="sync-modal-btns">
+          <button id="syncDisconnect" class="danger" style="display: none">
+            Disconnect
+          </button>
+          <button id="syncCancel">Cancel</button>
+          <button id="syncSave" class="primary">Connect</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB BAR -->
+    <div class="tabs" id="tabBar">
+      <button class="tab-add" id="addBtn" title="New note">+</button>
+      <button
+        class="tab-add"
+        id="addTaskBtn"
+        title="New task list"
+        style="padding: 2px 6px"
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 14 14"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="1.5,3.5 3,5 5.5,2.5" />
+          <line x1="7.5" y1="3.5" x2="12.5" y2="3.5" />
+          <polyline points="1.5,9 3,10.5 5.5,8" />
+          <line x1="7.5" y1="9" x2="12.5" y2="9" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- TITLE BAR (hidden) -->
+    <div class="title-bar" id="titleBar" style="display: none">
+      <input
+        class="title-input"
+        id="titleInput"
+        placeholder="Tab title…"
+        spellcheck="false"
+      />
+      <div class="save-dot" id="saveDot"></div>
+    </div>
+
+    <!-- FORMAT BAR -->
+    <div class="format-bar" id="formatBar">
+      <button class="fmt-btn" id="fmtBold" title="Bold"><b>B</b></button>
+      <button class="fmt-btn" id="fmtItalic" title="Italic"><i>I</i></button>
+      <button class="fmt-btn" id="fmtUnderline" title="Underline">
+        <u>U</u>
+      </button>
+      <button
+        class="fmt-btn"
+        id="fmtStrike"
+        title="Strikethrough"
+        style="text-decoration: line-through"
+      >
+        S
+      </button>
+      <div class="fmt-sep"></div>
+      <button
+        class="fmt-btn"
+        id="fmtSizeDown"
+        title="Decrease font"
+        style="font-size: 11px"
+      >
+        A-
+      </button>
+      <button
+        class="fmt-btn"
+        id="fmtSizeUp"
+        title="Increase font"
+        style="font-size: 15px"
+      >
+        A+
+      </button>
+      <select class="fmt-select" id="fmtSize" title="Font size">
+        <option value="">Size</option>
+        <option value="1">10px</option>
+        <option value="2">12px</option>
+        <option value="3">14px</option>
+        <option value="4">16px</option>
+        <option value="5">20px</option>
+        <option value="6">24px</option>
+        <option value="7">32px</option>
+      </select>
+      <div class="fmt-sep"></div>
+      <div class="fmt-color text-color" title="Text color">
+        <input type="color" id="fmtColor" value="#e0e0e0" />
+      </div>
+      <div class="fmt-color highlight-color" title="Highlight">
+        <input type="color" id="fmtHighlight" value="#111111" />
+      </div>
+      <div class="fmt-sep"></div>
+      <button class="fmt-btn" id="fmtUL" title="Bullet list">•</button>
+      <button class="fmt-btn" id="fmtOL" title="Numbered list">1.</button>
+      <div class="fmt-sep"></div>
+      <button class="fmt-btn" id="fmtLink" title="Insert Link">🔗</button>
+    </div>
+
+    <!-- EDITOR -->
+    <div
+      class="editor"
+      id="editor"
+      contenteditable="true"
+      spellcheck="false"
+    ></div>
+
+    <!-- TASK VIEW -->
+    <div class="task-view" id="taskView" style="display: none">
+      <div class="task-list" id="taskList"></div>
+      <div class="task-add-row">
+        <button class="task-add-btn" id="taskAddBtn" title="Add task">+</button>
+      </div>
+    </div>
+
+    <!-- LINK MODAL -->
+    <div class="link-modal" id="linkModal">
+      <h3>Insert Link</h3>
+      <input id="linkText" placeholder="Display text" />
+      <input id="linkUrl" placeholder="https://..." />
+      <div class="link-modal-btns">
+        <button id="linkCancel">Cancel</button>
+        <button class="primary" id="linkInsert">Insert</button>
+      </div>
+    </div>
+
+    <!-- EMPTY STATE -->
+    <div class="empty" id="emptyState" style="display: none">
+      <div class="empty-icon">📝</div>
+      <p>No tabs — create one</p>
+      <button onclick="addTab()">+ New tab</button>
+    </div>
+
+    <!-- STATUS BAR -->
+    <div class="status">
+      <div class="status-left">
+        <span id="charInfo">0 chars</span>
+      </div>
+      <div class="status-right">
+        <span id="syncStatus">—</span>
+        <span id="savedAt">—</span>
+      </div>
+    </div>
+
+    <!-- CONTEXT MENU -->
+    <div class="ctx" id="ctx">
+      <button class="ctx-item" id="ctxRename">✏️ Rename</button>
+      <button class="ctx-item" id="ctxDuplicate">📋 Duplicate</button>
+      <div class="ctx-sep"></div>
+      <div
+        style="display: flex; gap: 4px; padding: 6px 12px; align-items: center"
+      >
+        <span style="font-size: 10px; color: #888; margin-right: 2px">🎨</span>
+        <span
+          class="ctx-color"
+          data-color=""
+          style="
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 1px solid #555;
+            cursor: pointer;
+            background: #333;
+          "
+          title="None"
+        ></span>
+        <span
+          class="ctx-color"
+          data-color="#e74c3c"
+          style="
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            cursor: pointer;
+            background: #e74c3c;
+          "
+          title="Red"
+        ></span>
+        <span
+          class="ctx-color"
+          data-color="#e67e22"
+          style="
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            cursor: pointer;
+            background: #e67e22;
+          "
+          title="Orange"
+        ></span>
+        <span
+          class="ctx-color"
+          data-color="#f1c40f"
+          style="
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            cursor: pointer;
+            background: #f1c40f;
+          "
+          title="Yellow"
+        ></span>
+        <span
+          class="ctx-color"
+          data-color="#2ecc71"
+          style="
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            cursor: pointer;
+            background: #2ecc71;
+          "
+          title="Green"
+        ></span>
+        <span
+          class="ctx-color"
+          data-color="#3498db"
+          style="
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            cursor: pointer;
+            background: #3498db;
+          "
+          title="Blue"
+        ></span>
+        <span
+          class="ctx-color"
+          data-color="#9b59b6"
+          style="
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            cursor: pointer;
+            background: #9b59b6;
+          "
+          title="Purple"
+        ></span>
+        <span
+          class="ctx-color"
+          data-color="#e91e63"
+          style="
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            cursor: pointer;
+            background: #e91e63;
+          "
+          title="Pink"
+        ></span>
+      </div>
+      <div class="ctx-sep"></div>
+      <button class="ctx-item" id="ctxExport">⬇ Export .txt</button>
+      <div class="ctx-sep"></div>
+      <button class="ctx-item" style="color: #f66" id="ctxDelete">
+        🗑 Delete
+      </button>
+    </div>
+
+    <script>
+      /* ═══════════════════════════════════════════════════════════ *
+       *  NOTES APP – Web Version with GitHub Gist Sync
+       * ═══════════════════════════════════════════════════════════ */
+
+      const KEY = "notes-app-data";
+      const SYNC_KEY = "notes-sync-config";
+      const $ = (id) => document.getElementById(id);
+
+      let state = { tabs: [], active: null, deletedIds: [] };
+      let saveTimer = null;
+      let ctxId = null;
+
+      // ── PERSISTENCE ──
+      function load() {
+        try {
+          const raw = localStorage.getItem(KEY);
+          if (raw) state = JSON.parse(raw);
+          if (!state.tabs) state.tabs = [];
+          if (!state.deletedIds) state.deletedIds = [];
+        } catch (e) {
+          state = { tabs: [], active: null, deletedIds: [] };
+        }
+      }
+
+      function save(andSync) {
+        const dot = $("saveDot");
+        if (dot) dot.classList.add("dirty");
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(() => {
+          localStorage.setItem(KEY, JSON.stringify(state));
+          if (dot) dot.classList.remove("dirty");
+          $("savedAt").textContent =
+            "saved " +
+            new Date().toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+          if (andSync !== false) debouncedSync();
+        }, 250);
+      }
+
+      // ── TAB CRUD ──
+      function uid() {
+        return (
+          "n" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5)
+        );
+      }
+
+      function addTab(title, content, type) {
+        const t = {
+          id: uid(),
+          title: title || "Untitled",
+          content: content || "",
+          type: type || "note",
+          tasks:
+            type === "task"
+              ? [{ id: uid(), text: "", snapshot: null }]
+              : undefined,
+          ts: Date.now(),
+        };
+        state.tabs.push(t);
+        state.active = t.id;
+        save();
+        render();
+        setTimeout(() => {
+          const tabEl = document.querySelector(
+            `.tab[data-id="${t.id}"] .tab-label`,
+          );
+          if (tabEl) startInlineRename(t.id, tabEl);
+        }, 50);
+      }
+
+      function addTaskTab() {
+        addTab("Tasks", "", "task");
+      }
+
+      function removeTab(id) {
+        const idx = state.tabs.findIndex((t) => t.id === id);
+        if (idx === -1) return;
+        state.tabs.splice(idx, 1);
+        if (!state.deletedIds) state.deletedIds = [];
+        state.deletedIds.push({ id, ts: Date.now() });
+        if (state.active === id) {
+          state.active = state.tabs.length
+            ? state.tabs[Math.min(idx, state.tabs.length - 1)].id
+            : null;
+        }
+        save();
+        render();
+      }
+
+      function switchTab(id) {
+        syncEditor();
+        state.active = id;
+        save();
+        render();
+      }
+
+      function syncEditor() {
+        const t = state.tabs.find((t) => t.id === state.active);
+        if (!t) return;
+        t.title = $("titleInput").value || "Untitled";
+        if (t.type !== "task") t.content = $("editor").innerHTML;
+        t.ts = Date.now();
+      }
+
+      function duplicateTab(id) {
+        const src = state.tabs.find((t) => t.id === id);
+        if (!src) return;
+        if (src.type === "task") {
+          const t = {
+            id: uid(),
+            title: src.title + " (copy)",
+            content: "",
+            type: "task",
+            tasks: JSON.parse(JSON.stringify(src.tasks || [])),
+            ts: Date.now(),
+          };
+          state.tabs.push(t);
+          state.active = t.id;
+          save();
+          render();
+        } else {
+          addTab(src.title + " (copy)", src.content);
+        }
+      }
+
+      // ── TASK RENDERING ──
+      const svgPencil = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>`;
+      const svgX = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+
+      function renderTasks(tab) {
+        const list = $("taskList");
+        list.innerHTML = "";
+        if (!tab.tasks) tab.tasks = [];
+        tab.tasks.forEach((task, i) => {
+          const row = document.createElement("div");
+          row.className = "task-row";
+          const num = document.createElement("span");
+          num.className = "task-num";
+          num.textContent = i + 1;
+          row.appendChild(num);
+          const textEl = document.createElement("input");
+          textEl.type = "text";
+          textEl.className = "task-text";
+          textEl.value = task.text;
+          textEl.placeholder = "New task…";
+          textEl.addEventListener("input", () => {
+            task.text = textEl.value;
+            save();
+          });
+          textEl.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              addTaskRow(tab, i + 1);
+            }
+          });
+          row.appendChild(textEl);
+          const actions = document.createElement("span");
+          actions.className = "task-actions";
+          const delBtn = document.createElement("button");
+          delBtn.className = "task-icon-btn";
+          delBtn.title = "Remove";
+          delBtn.innerHTML = svgX;
+          delBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            tab.tasks.splice(i, 1);
+            save();
+            renderTasks(tab);
+          });
+          actions.appendChild(delBtn);
+          row.appendChild(actions);
+          list.appendChild(row);
+        });
+      }
+
+      function addTaskRow(tab, atIndex) {
+        if (!tab.tasks) tab.tasks = [];
+        const newTask = { id: uid(), text: "", snapshot: null };
+        if (atIndex !== undefined) tab.tasks.splice(atIndex, 0, newTask);
+        else tab.tasks.push(newTask);
+        save();
+        renderTasks(tab);
+        setTimeout(() => {
+          const inputs = $("taskList").querySelectorAll(".task-text");
+          const idx = atIndex !== undefined ? atIndex : inputs.length - 1;
+          if (inputs[idx]) inputs[idx].focus();
+        }, 30);
+      }
+
+      // ── TAB DRAG REORDER ──
+      let tabDragId = null;
+      function setupTabDrag(el, tabId) {
+        el.draggable = true;
+        el.addEventListener("dragstart", (e) => {
+          tabDragId = tabId;
+          e.dataTransfer.effectAllowed = "move";
+          e.dataTransfer.setData("text/plain", tabId);
+          el.classList.add("tab-dragging");
+        });
+        el.addEventListener("dragend", () => {
+          el.classList.remove("tab-dragging");
+          document
+            .querySelectorAll(".tab")
+            .forEach((t) => t.classList.remove("tab-drag-over"));
+          tabDragId = null;
+        });
+        el.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          if (tabDragId && tabDragId !== tabId)
+            el.classList.add("tab-drag-over");
+        });
+        el.addEventListener("dragleave", () =>
+          el.classList.remove("tab-drag-over"),
+        );
+        el.addEventListener("drop", (e) => {
+          e.preventDefault();
+          el.classList.remove("tab-drag-over");
+          const fromId = e.dataTransfer.getData("text/plain");
+          if (fromId === tabId) return;
+          const fromIdx = state.tabs.findIndex((t) => t.id === fromId);
+          const toIdx = state.tabs.findIndex((t) => t.id === tabId);
+          if (fromIdx === -1 || toIdx === -1) return;
+          const [moved] = state.tabs.splice(fromIdx, 1);
+          state.tabs.splice(toIdx, 0, moved);
+          save();
+          render();
+        });
+      }
+
+      // ── RENDER ──
+      function render() {
+        const bar = $("tabBar");
+        const addBtn = $("addBtn");
+        bar.querySelectorAll(".tab").forEach((el) => el.remove());
+        state.tabs.forEach((t) => {
+          const el = document.createElement("button");
+          el.className = "tab" + (t.id === state.active ? " active" : "");
+          el.dataset.id = t.id;
+          if (t.color) {
+            if (t.id === state.active) {
+              el.style.background = t.color;
+              el.style.borderColor = t.color;
+              el.style.color = "#fff";
+            } else {
+              el.style.borderColor = t.color;
+              el.style.borderWidth = "1px";
+              el.style.borderStyle = "solid";
+              el.style.color = t.color;
+            }
+          }
+          const label = document.createElement("span");
+          label.className = "tab-label";
+          label.textContent = (t.type === "task" ? "☰ " : "") + t.title;
+          el.appendChild(label);
+          const x = document.createElement("span");
+          x.className = "tab-x";
+          x.textContent = "✕";
+          x.addEventListener("click", (e) => {
+            e.stopPropagation();
+            removeTab(t.id);
+          });
+          el.appendChild(x);
+          let clickTimer = null;
+          el.addEventListener("click", () => {
+            clearTimeout(clickTimer);
+            clickTimer = setTimeout(() => switchTab(t.id), 200);
+          });
+          el.addEventListener("dblclick", (e) => {
+            clearTimeout(clickTimer);
+            e.stopPropagation();
+            if (t.id !== state.active) switchTab(t.id);
+            setTimeout(() => {
+              const lbl = document.querySelector(
+                `.tab[data-id="${t.id}"] .tab-label`,
+              );
+              if (lbl) startInlineRename(t.id, lbl);
+            }, 50);
+          });
+          el.addEventListener("contextmenu", (e) => {
+            e.preventDefault();
+            ctxId = t.id;
+            showCtx(e.clientX, e.clientY);
+          });
+          setupTabDrag(el, t.id);
+          bar.insertBefore(el, addBtn);
+        });
+        const active = state.tabs.find((t) => t.id === state.active);
+        if (active) {
+          const isTask = active.type === "task";
+          if (isTask) {
+            $("editor").style.display = "none";
+            $("taskView").style.display = "flex";
+            if (!$("formatBar").classList.contains("hidden"))
+              $("formatBar").classList.add("hidden");
+            renderTasks(active);
+          } else {
+            $("editor").style.display = "block";
+            $("taskView").style.display = "none";
+            if (!$("formatBar").classList.contains("hidden"))
+              $("formatBar").classList.remove("hidden");
+            $("editor").innerHTML = active.content;
+          }
+          $("emptyState").style.display = "none";
+          $("titleInput").value = active.title;
+          updateInfo();
+        } else {
+          $("formatBar").classList.add("hidden");
+          $("editor").style.display = "none";
+          $("taskView").style.display = "none";
+          $("emptyState").style.display = "flex";
+        }
+      }
+
+      function updateInfo() {
+        const text = $("editor").innerText || "";
+        $("charInfo").textContent = text.length.toLocaleString() + " chars";
+      }
+
+      // ── INLINE TAB RENAME ──
+      function startInlineRename(id, labelEl) {
+        const tab = state.tabs.find((t) => t.id === id);
+        if (!tab) return;
+        const tabEl = labelEl.closest(".tab");
+        const currentWidth = tabEl.offsetWidth;
+        tabEl.style.width = currentWidth + "px";
+        const input = document.createElement("input");
+        input.className = "tab-rename-input";
+        input.value = tab.title;
+        input.addEventListener("click", (e) => e.stopPropagation());
+        const finishRename = () => {
+          const newTitle = input.value.trim() || "Untitled";
+          tab.title = newTitle;
+          $("titleInput").value = newTitle;
+          tabEl.style.width = "";
+          save();
+          render();
+        };
+        input.addEventListener("blur", finishRename);
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            input.blur();
+          }
+          if (e.key === "Escape") {
+            input.value = tab.title;
+            input.blur();
+          }
+        });
+        labelEl.textContent = "";
+        labelEl.appendChild(input);
+        input.focus();
+        input.select();
+      }
+
+      // ── CONTEXT MENU ──
+      function showCtx(x, y) {
+        const m = $("ctx");
+        m.style.left = Math.min(x, window.innerWidth - 170) + "px";
+        m.style.top = Math.min(y, window.innerHeight - 180) + "px";
+        m.classList.add("show");
+      }
+      function hideCtx() {
+        $("ctx").classList.remove("show");
+      }
+
+      $("ctxRename").onclick = () => {
+        hideCtx();
+        if (ctxId !== state.active) switchTab(ctxId);
+        setTimeout(() => {
+          const tabEl = document.querySelector(
+            `.tab[data-id="${ctxId}"] .tab-label`,
+          );
+          if (tabEl) startInlineRename(ctxId, tabEl);
+        }, 50);
+      };
+      $("ctxDuplicate").onclick = () => {
+        hideCtx();
+        duplicateTab(ctxId);
+      };
+      $("ctxExport").onclick = () => {
+        hideCtx();
+        const t = state.tabs.find((t) => t.id === ctxId);
+        if (t) {
+          const tmp = document.createElement("div");
+          tmp.innerHTML = t.content;
+          dl(t.title + ".txt", tmp.innerText || t.content);
+        }
+      };
+      $("ctxDelete").onclick = () => {
+        hideCtx();
+        removeTab(ctxId);
+      };
+      document.querySelectorAll(".ctx-color").forEach((el) => {
+        el.addEventListener("click", () => {
+          const color = el.dataset.color;
+          const tab = state.tabs.find((t) => t.id === ctxId);
+          if (tab) {
+            tab.color = color || undefined;
+            save();
+            render();
+          }
+          hideCtx();
+        });
+      });
+      document.addEventListener("click", hideCtx);
+
+      // ── EXPORT ──
+      function dl(name, text) {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
+        a.download = name;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }
+
+      // ── EVENTS ──
+      $("editor").addEventListener("input", () => {
+        syncEditor();
+        save();
+        updateInfo();
+      });
+      $("titleInput").addEventListener("input", () => {
+        syncEditor();
+        save();
+        render();
+      });
+      $("addBtn").addEventListener("click", () => addTab());
+      $("addTaskBtn").addEventListener("click", () => addTaskTab());
+      $("taskAddBtn").addEventListener("click", () => {
+        const active = state.tabs.find((t) => t.id === state.active);
+        if (active && active.type === "task") addTaskRow(active);
+      });
+
+      // ── KEYBOARD SHORTCUTS ──
+      document.addEventListener("keydown", (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === "t") {
+          e.preventDefault();
+          addTab();
+        }
+        if ((e.metaKey || e.ctrlKey) && e.key === "w") {
+          e.preventDefault();
+          if (state.active) removeTab(state.active);
+        }
+        if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+          e.preventDefault();
+          syncEditor();
+          save();
+        }
+        if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+          e.preventDefault();
+          openLinkModal();
+        }
+        if ((e.metaKey || e.ctrlKey) && (e.key === "=" || e.key === "+")) {
+          e.preventDefault();
+          if (currentFontSize < 7) currentFontSize++;
+          execCmd("fontSize", currentFontSize);
+        }
+        if ((e.metaKey || e.ctrlKey) && e.key === "-") {
+          e.preventDefault();
+          if (currentFontSize > 1) currentFontSize--;
+          execCmd("fontSize", currentFontSize);
+        }
+        if ((e.metaKey || e.ctrlKey) && e.key === "[") {
+          e.preventDefault();
+          cycleTab(-1);
+        }
+        if ((e.metaKey || e.ctrlKey) && e.key === "]") {
+          e.preventDefault();
+          cycleTab(1);
+        }
+        if (e.key === "Escape") {
+          hideCtx();
+          $("linkModal").classList.remove("show");
+        }
+      });
+
+      function cycleTab(dir) {
+        if (state.tabs.length < 2) return;
+        const idx = state.tabs.findIndex((t) => t.id === state.active);
+        const next = (idx + dir + state.tabs.length) % state.tabs.length;
+        switchTab(state.tabs[next].id);
+      }
+
+      // ── FORMATTING ──
+      function execCmd(cmd, val) {
+        $("editor").focus();
+        document.execCommand(cmd, false, val || null);
+        syncEditor();
+        save();
+      }
+      $("fmtBold").addEventListener("click", () => execCmd("bold"));
+      $("fmtItalic").addEventListener("click", () => execCmd("italic"));
+      $("fmtUnderline").addEventListener("click", () => execCmd("underline"));
+      $("fmtStrike").addEventListener("click", () => execCmd("strikeThrough"));
+      let currentFontSize = 3;
+      $("fmtSizeUp").addEventListener("click", () => {
+        if (currentFontSize < 7) currentFontSize++;
+        execCmd("fontSize", currentFontSize);
+      });
+      $("fmtSizeDown").addEventListener("click", () => {
+        if (currentFontSize > 1) currentFontSize--;
+        execCmd("fontSize", currentFontSize);
+      });
+      $("fmtUL").addEventListener("click", () =>
+        execCmd("insertUnorderedList"),
+      );
+      $("fmtOL").addEventListener("click", () => execCmd("insertOrderedList"));
+      $("fmtSize").addEventListener("change", (e) => {
+        if (e.target.value) {
+          execCmd("fontSize", e.target.value);
+          e.target.value = "";
+        }
+      });
+      $("fmtColor").addEventListener("input", (e) => {
+        e.target.closest(".fmt-color").style.background = e.target.value;
+        execCmd("foreColor", e.target.value);
+      });
+      $("fmtHighlight").addEventListener("input", (e) => {
+        e.target.closest(".fmt-color").style.background = e.target.value;
+        execCmd("hiliteColor", e.target.value);
+      });
+
+      $("editor").addEventListener("click", (e) => {
+        if (e.target.tagName === "A" && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault();
+          if (e.target.href) window.open(e.target.href, "_blank");
+        }
+      });
+
+      // ── LINK MODAL ──
+      let savedRange = null;
+      function openLinkModal() {
+        const sel = window.getSelection();
+        if (sel.rangeCount > 0) {
+          savedRange = sel.getRangeAt(0).cloneRange();
+          $("linkText").value = sel.toString() || "";
+        }
+        $("linkUrl").value = "";
+        $("linkModal").classList.add("show");
+        $("linkUrl").focus();
+      }
+      $("fmtLink").addEventListener("click", openLinkModal);
+      $("linkCancel").addEventListener("click", () => {
+        $("linkModal").classList.remove("show");
+        $("editor").focus();
+      });
+      $("linkInsert").addEventListener("click", () => {
+        const url = $("linkUrl").value.trim();
+        const text = $("linkText").value.trim() || url;
+        if (!url) return;
+        $("linkModal").classList.remove("show");
+        $("editor").focus();
+        if (savedRange) {
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(savedRange);
+        }
+        document.execCommand(
+          "insertHTML",
+          false,
+          `<a href="${url}" target="_blank">${text}</a>`,
+        );
+        syncEditor();
+        save();
+      });
+      $("linkUrl").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          $("linkInsert").click();
+        }
+        if (e.key === "Escape") {
+          $("linkModal").classList.remove("show");
+          $("editor").focus();
+        }
+      });
+
+      // ── SETTINGS ──
+      const settingsBtn = $("settingsBtn");
+      const settingsDropdown = $("settingsDropdown");
+      const fmtToggleBtn = $("fmtToggleBtn");
+      const fmtPill = $("fmtPill");
+
+      settingsBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        settingsDropdown.classList.toggle("show");
+      });
+      document.addEventListener("click", (e) => {
+        if (!settingsDropdown.contains(e.target) && e.target !== settingsBtn)
+          settingsDropdown.classList.remove("show");
+      });
+      fmtToggleBtn.addEventListener("click", () => {
+        const active = state.tabs.find((t) => t.id === state.active);
+        if (active && active.type === "task") return;
+        $("formatBar").classList.toggle("hidden");
+        fmtPill.classList.toggle(
+          "on",
+          !$("formatBar").classList.contains("hidden"),
+        );
+      });
+
+      /* ═══════════════════════════════════════════════════════════ *
+       *  GITHUB GIST SYNC
+       * ═══════════════════════════════════════════════════════════ */
+      let syncConfig = null;
+      let syncTimer = null;
+      let isSyncing = false;
+      let syncDebounceTimer = null;
+
+      function loadSyncConfig() {
+        try {
+          const raw = localStorage.getItem(SYNC_KEY);
+          if (raw) syncConfig = JSON.parse(raw);
+        } catch (e) {
+          syncConfig = null;
+        }
+      }
+      function saveSyncConfig() {
+        localStorage.setItem(SYNC_KEY, JSON.stringify(syncConfig));
+      }
+
+      function updateSyncUI() {
+        const dot = $("syncDot");
+        const label = $("syncConfigLabel");
+        if (syncConfig && syncConfig.token && syncConfig.gistId) {
+          label.textContent = "Connected";
+          label.style.color = "#4a4";
+          dot.title = "Sync connected";
+        } else {
+          label.textContent = "Not set up";
+          label.style.color = "#666";
+          dot.className = "sync-dot off";
+          dot.title = "Sync not configured";
+        }
+      }
+
+      function setSyncDot(status) {
+        const dot = $("syncDot");
+        dot.className = "sync-dot " + status;
+        const statusEl = $("syncStatus");
+        if (status === "syncing") {
+          dot.title = "Syncing…";
+          statusEl.textContent = "syncing…";
+        } else if (status === "synced") {
+          dot.title = "Synced";
+          statusEl.textContent = "synced";
+        } else if (status === "error") {
+          dot.title = "Sync error";
+          statusEl.textContent = "sync error";
+        } else {
+          statusEl.textContent = "—";
+        }
+      }
+
+      async function gistRequest(method, url, body) {
+        const opts = {
+          method,
+          headers: {
+            Authorization: "token " + syncConfig.token,
+            Accept: "application/vnd.github.v3+json",
+          },
+        };
+        if (body) opts.body = JSON.stringify(body);
+        const res = await fetch(url, opts);
+        if (!res.ok) throw new Error("GitHub API " + res.status);
+        return res.json();
+      }
+
+      async function pullFromGist() {
+        if (!syncConfig?.token || !syncConfig?.gistId) return null;
+        const gist = await gistRequest(
+          "GET",
+          "https://api.github.com/gists/" + syncConfig.gistId,
+        );
+        const file = gist.files["notes-data.json"];
+        if (!file) return null;
+        return JSON.parse(file.content);
+      }
+
+      async function pushToGist(data) {
+        if (!syncConfig?.token || !syncConfig?.gistId) return;
+        await gistRequest(
+          "PATCH",
+          "https://api.github.com/gists/" + syncConfig.gistId,
+          {
+            files: { "notes-data.json": { content: JSON.stringify(data) } },
+          },
+        );
+      }
+
+      async function createGist(token) {
+        return await gistRequest("POST", "https://api.github.com/gists", {
+          description: "Notes App Sync Data (do not delete)",
+          public: false,
+          files: {
+            "notes-data.json": {
+              content: JSON.stringify({
+                tabs: [],
+                active: null,
+                deletedIds: [],
+                syncTs: Date.now(),
+              }),
+            },
+          },
+        });
+      }
+
+      function mergeStates(local, remote) {
+        if (!remote || !remote.tabs) return local;
+        if (!local || !local.tabs || local.tabs.length === 0)
+          return {
+            ...remote,
+            deletedIds: [
+              ...(remote.deletedIds || []),
+              ...(local.deletedIds || []),
+            ],
+          };
+
+        const localDeleted = new Map(
+          (local.deletedIds || []).map((d) => [d.id, d.ts]),
+        );
+        const remoteDeleted = new Map(
+          (remote.deletedIds || []).map((d) => [d.id, d.ts]),
+        );
+
+        // Merge deleted lists
+        const mergedDeletedMap = new Map();
+        for (const [id, ts] of localDeleted)
+          mergedDeletedMap.set(id, Math.max(ts, mergedDeletedMap.get(id) || 0));
+        for (const [id, ts] of remoteDeleted)
+          mergedDeletedMap.set(id, Math.max(ts, mergedDeletedMap.get(id) || 0));
+
+        const remoteMap = new Map(remote.tabs.map((t) => [t.id, t]));
+        const localMap = new Map(local.tabs.map((t) => [t.id, t]));
+        const merged = [];
+        const seen = new Set();
+
+        // Local tabs first (preserve local order)
+        for (const lt of local.tabs) {
+          seen.add(lt.id);
+          const delTs = mergedDeletedMap.get(lt.id) || 0;
+          if (delTs > (lt.ts || 0)) continue; // was deleted after last edit
+          const rt = remoteMap.get(lt.id);
+          if (rt) merged.push((rt.ts || 0) > (lt.ts || 0) ? rt : lt);
+          else merged.push(lt);
+        }
+        // Remote-only tabs
+        for (const rt of remote.tabs) {
+          if (seen.has(rt.id)) continue;
+          const delTs = mergedDeletedMap.get(rt.id) || 0;
+          if (delTs > (rt.ts || 0)) continue;
+          merged.push(rt);
+        }
+
+        // Clean up old deletions (older than 30 days)
+        const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+        const mergedDeleted = Array.from(mergedDeletedMap.entries())
+          .filter(([_, ts]) => ts > cutoff)
+          .map(([id, ts]) => ({ id, ts }));
+
+        return {
+          tabs: merged,
+          active: local.active || remote.active,
+          deletedIds: mergedDeleted,
+          syncTs: Date.now(),
+        };
+      }
+
+      async function doSync() {
+        if (isSyncing || !syncConfig?.token || !syncConfig?.gistId) return;
+        isSyncing = true;
+        setSyncDot("syncing");
+        try {
+          syncEditor();
+          const remote = await pullFromGist();
+          const merged = mergeStates(state, remote);
+          state = merged;
+          state.syncTs = Date.now();
+          localStorage.setItem(KEY, JSON.stringify(state));
+          await pushToGist(state);
+          render();
+          setSyncDot("synced");
+        } catch (e) {
+          console.error("Sync failed:", e);
+          setSyncDot("error");
+        }
+        isSyncing = false;
+      }
+
+      function debouncedSync() {
+        if (!syncConfig?.token || !syncConfig?.gistId) return;
+        clearTimeout(syncDebounceTimer);
+        syncDebounceTimer = setTimeout(doSync, 2000);
+      }
+
+      function startSyncLoop() {
+        if (syncTimer) clearInterval(syncTimer);
+        if (syncConfig?.token && syncConfig?.gistId) {
+          doSync();
+          syncTimer = setInterval(doSync, 30000);
+        }
+      }
+
+      // ── SYNC SETTINGS MODAL ──
+      $("openSyncSettings").addEventListener("click", () => {
+        settingsDropdown.classList.remove("show");
+        $("syncTokenInput").value = syncConfig?.token || "";
+        $("syncGistInput").value = syncConfig?.gistId || "";
+        $("syncDisconnect").style.display = syncConfig?.token
+          ? "inline-block"
+          : "none";
+        $("syncStatusMsg").style.display = "none";
+        $("syncModal").classList.add("show");
+      });
+
+      $("syncCancel").addEventListener("click", () =>
+        $("syncModal").classList.remove("show"),
+      );
+
+      $("syncDisconnect").addEventListener("click", () => {
+        syncConfig = null;
+        localStorage.removeItem(SYNC_KEY);
+        if (syncTimer) clearInterval(syncTimer);
+        updateSyncUI();
+        setSyncDot("off");
+        $("syncStatus").textContent = "—";
+        $("syncModal").classList.remove("show");
+      });
+
+      $("syncSave").addEventListener("click", async () => {
+        const token = $("syncTokenInput").value.trim();
+        const gistId = $("syncGistInput").value.trim();
+        const msgEl = $("syncStatusMsg");
+
+        if (!token) {
+          msgEl.textContent = "Token is required";
+          msgEl.className = "sync-status-msg error";
+          msgEl.style.display = "block";
+          return;
+        }
+
+        msgEl.textContent = "Connecting…";
+        msgEl.className = "sync-status-msg success";
+        msgEl.style.display = "block";
+        $("syncSave").disabled = true;
+
+        try {
+          syncConfig = { token };
+
+          if (gistId) {
+            syncConfig.gistId = gistId;
+            // Verify it works
+            await pullFromGist();
+          } else {
+            // Create new gist
+            const gist = await createGist(token);
+            syncConfig.gistId = gist.id;
+          }
+
+          saveSyncConfig();
+          updateSyncUI();
+          startSyncLoop();
+
+          msgEl.textContent = "Connected! Gist ID: " + syncConfig.gistId;
+          msgEl.className = "sync-status-msg success";
+          setTimeout(() => $("syncModal").classList.remove("show"), 1500);
+        } catch (e) {
+          console.error("Sync setup failed:", e);
+          msgEl.textContent = "Failed: " + e.message;
+          msgEl.className = "sync-status-msg error";
+          syncConfig = null;
+        }
+        $("syncSave").disabled = false;
+      });
+
+      $("syncNowBtn").addEventListener("click", () => {
+        if (syncConfig?.token && syncConfig?.gistId) doSync();
+        else {
+          $("openSyncSettings").click();
+        }
+      });
+
+      // ── INIT ──
+      load();
+      loadSyncConfig();
+      updateSyncUI();
+
+      if (state.tabs.length === 0) {
+        addTab(
+          "Quick Notes",
+          "<b>Welcome to Notes</b><br><br>Tap + to add tabs.<br>Double-tap a tab to rename.<br>Long-press for more options.<br><br>Set up sync in ⚙ to connect with your Mac app.",
+        );
+      } else {
+        render();
+      }
+
+      // Start sync if configured
+      if (syncConfig?.token && syncConfig?.gistId) {
+        startSyncLoop();
+      }
+
+      // Handle visibility change - sync when tab becomes visible
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden && syncConfig?.token && syncConfig?.gistId)
+          doSync();
+      });
+    </script>
+  </body>
+</html>
