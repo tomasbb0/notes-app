@@ -1825,6 +1825,7 @@
       let syncConfig = null;
       let syncTimer = null;
       let isSyncing = false;
+      let syncBackoff = 0;
       let syncDebounceTimer = null;
 
       function loadSyncConfig() {
@@ -2033,10 +2034,24 @@
           await pushToGist(state);
           render();
           setSyncDot("synced");
+          syncBackoff = 0;
           console.log("[Sync] done ✓");
         } catch (e) {
           console.error("[Sync] failed:", e);
           setSyncDot("error");
+          const s = $("syncStatus");
+          if (e.message && e.message.includes("403")) {
+            syncBackoff = Math.min((syncBackoff || 60) * 2, 600);
+            s.textContent = "rate limited, retry in " + syncBackoff + "s";
+            clearInterval(syncTimer);
+            syncTimer = setTimeout(() => {
+              doSync();
+              syncTimer = setInterval(doSync, 60000);
+            }, syncBackoff * 1000);
+          } else {
+            s.textContent = "error: " + (e.message || e);
+          }
+          s.title = String(e);
         }
         isSyncing = false;
       }
@@ -2051,7 +2066,7 @@
         if (syncTimer) clearInterval(syncTimer);
         if (syncConfig?.token && syncConfig?.gistId) {
           doSync();
-          syncTimer = setInterval(doSync, 30000);
+          syncTimer = setInterval(doSync, 60000);
         }
       }
 

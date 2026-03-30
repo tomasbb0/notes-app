@@ -25,6 +25,13 @@ function createWindow() {
 
   mainWindow.loadFile("index.html");
 
+  // Enable DevTools shortcut (Cmd+Option+I)
+  mainWindow.webContents.on("before-input-event", (event, input) => {
+    if (input.meta && input.alt && input.key.toLowerCase() === "i") {
+      mainWindow.webContents.toggleDevTools();
+    }
+  });
+
   // Make it float above ALL windows including fullscreen on macOS
   applyAlwaysOnTop();
 

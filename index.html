@@ -2137,6 +2137,7 @@
       let syncConfig = null;
       let gistSyncTimer = null;
       let isSyncing = false;
+      let syncBackoff = 0;
       let syncDebounceTimer = null;
 
       function loadSyncConfig() {
@@ -2178,11 +2179,17 @@
           headers: {
             Authorization: "Bearer " + syncConfig.token,
             Accept: "application/vnd.github.v3+json",
+            "Content-Type": "application/json",
           },
         };
         if (body) opts.body = JSON.stringify(body);
         const res = await fetch(url, opts);
-        if (!res.ok) throw new Error("GitHub API " + res.status);
+        if (!res.ok) {
+          const txt = await res.text().catch(() => "");
+          throw new Error(
+            "GitHub API " + res.status + ": " + txt.slice(0, 200),
+          );
+        }
         return res.json();
       }
 
@@ -2314,10 +2321,25 @@
           await pushToGist(state);
           render();
           setSyncDot("synced");
+          syncBackoff = 0;
           console.log("[Sync] done ✓");
         } catch (e) {
           console.error("[Sync] failed:", e);
           setSyncDot("error");
+          const s = $("syncStatus");
+          if (e.message && e.message.includes("403")) {
+            // Rate limited — back off
+            syncBackoff = Math.min((syncBackoff || 60) * 2, 600);
+            s.textContent = "rate limited, retry in " + syncBackoff + "s";
+            clearInterval(gistSyncTimer);
+            gistSyncTimer = setTimeout(() => {
+              doSync();
+              gistSyncTimer = setInterval(doSync, 60000);
+            }, syncBackoff * 1000);
+          } else {
+            s.textContent = "error: " + (e.message || e);
+          }
+          s.title = String(e);
         }
         isSyncing = false;
       }
@@ -2332,7 +2354,7 @@
         if (gistSyncTimer) clearInterval(gistSyncTimer);
         if (syncConfig?.token && syncConfig?.gistId) {
           doSync();
-          gistSyncTimer = setInterval(doSync, 30000);
+          gistSyncTimer = setInterval(doSync, 60000);
         }
       }
 
