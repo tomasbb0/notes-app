@@ -2176,7 +2176,7 @@
         const opts = {
           method,
           headers: {
-            Authorization: "token " + syncConfig.token,
+            Authorization: "Bearer " + syncConfig.token,
             Accept: "application/vnd.github.v3+json",
           },
         };

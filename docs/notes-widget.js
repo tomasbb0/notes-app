@@ -15,7 +15,7 @@ const WEB_URL = "https://tomasbb0.github.io/notes-app/"; // tap widget to open
 async function fetchNotes() {
   const req = new Request(`https://api.github.com/gists/${GIST_ID}`);
   req.headers = {
-    Authorization: `token ${GITHUB_TOKEN}`,
+    Authorization: `Bearer ${GITHUB_TOKEN}`,
     Accept: "application/vnd.github.v3+json",
   };
   const gist = await req.loadJSON();
