@@ -371,6 +371,19 @@
         flex-shrink: 0;
         margin-left: 2px;
       }
+      .tab .tab-menu-arrow {
+        display: none;
+        flex-shrink: 0;
+        margin-left: 2px;
+        font-size: 11px;
+        color: #666;
+        cursor: pointer;
+        padding: 2px 4px;
+        border-radius: 3px;
+      }
+      .tab .tab-menu-arrow:active {
+        background: rgba(255, 255, 255, 0.1);
+      }
       .tab:hover .tab-x,
       .tab.active .tab-x {
         display: inline;
@@ -855,6 +868,15 @@
         .tab {
           padding: 7px 10px;
           font-size: 11px;
+        }
+        /* Hide X, show ▾ arrow on mobile */
+        .tab:hover .tab-x,
+        .tab.active .tab-x {
+          display: none !important;
+        }
+        .tab.active .tab-menu-arrow,
+        .tab:hover .tab-menu-arrow {
+          display: inline;
         }
       }
     </style>
@@ -1481,6 +1503,46 @@
             removeTab(t.id);
           });
           el.appendChild(x);
+          // ▾ arrow for mobile — opens context menu
+          const arrow = document.createElement("span");
+          arrow.className = "tab-menu-arrow";
+          arrow.textContent = "▾";
+          arrow.addEventListener("click", (e) => {
+            e.stopPropagation();
+            ctxId = t.id;
+            const rect = arrow.getBoundingClientRect();
+            showCtx(rect.left, rect.bottom + 4);
+          });
+          el.appendChild(arrow);
+
+          // Long-press opens context menu (mobile)
+          let lpTimer = null;
+          el.addEventListener(
+            "touchstart",
+            (e) => {
+              lpTimer = setTimeout(() => {
+                lpTimer = null;
+                ctxId = t.id;
+                const touch = e.touches[0];
+                showCtx(touch.clientX, touch.clientY);
+              }, 500);
+            },
+            { passive: true },
+          );
+          el.addEventListener(
+            "touchend",
+            () => {
+              if (lpTimer) clearTimeout(lpTimer);
+            },
+            { passive: true },
+          );
+          el.addEventListener(
+            "touchmove",
+            () => {
+              if (lpTimer) clearTimeout(lpTimer);
+            },
+            { passive: true },
+          );
           let clickTimer = null;
           el.addEventListener("click", () => {
             clearTimeout(clickTimer);
@@ -2059,7 +2121,7 @@
       function debouncedSync() {
         if (!syncConfig?.token || !syncConfig?.gistId) return;
         clearTimeout(syncDebounceTimer);
-        syncDebounceTimer = setTimeout(doSync, 2000);
+        syncDebounceTimer = setTimeout(doSync, 1000);
       }
 
       function startSyncLoop() {

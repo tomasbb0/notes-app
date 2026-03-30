@@ -2347,7 +2347,7 @@
       function debouncedSync() {
         if (!syncConfig?.token || !syncConfig?.gistId) return;
         clearTimeout(syncDebounceTimer);
-        syncDebounceTimer = setTimeout(doSync, 2000);
+        syncDebounceTimer = setTimeout(doSync, 1000);
       }
 
       function startSyncLoop() {
