@@ -8,15 +8,15 @@
 
 // ── CONFIG ──
 const GITHUB_TOKEN = "YOUR_TOKEN_HERE"; // your GitHub PAT with gist scope
-const GIST_ID = "YOUR_GIST_ID_HERE";   // the Gist ID from your Notes sync setup
+const GIST_ID = "YOUR_GIST_ID_HERE"; // the Gist ID from your Notes sync setup
 const WEB_URL = "https://tomasbb0.github.io/notes-app/"; // tap widget to open
 
 // ── FETCH NOTES ──
 async function fetchNotes() {
   const req = new Request(`https://api.github.com/gists/${GIST_ID}`);
   req.headers = {
-    "Authorization": `token ${GITHUB_TOKEN}`,
-    "Accept": "application/vnd.github.v3+json"
+    Authorization: `token ${GITHUB_TOKEN}`,
+    Accept: "application/vnd.github.v3+json",
   };
   const gist = await req.loadJSON();
   const file = gist.files["notes-data.json"];
@@ -74,7 +74,7 @@ async function createWidget() {
       empty.textColor = new Color("#555555");
     } else {
       // Show active tab or first tab
-      const activeTab = tabs.find(t => t.id === data.active) || tabs[0];
+      const activeTab = tabs.find((t) => t.id === data.active) || tabs[0];
 
       // Tab name
       const tabName = w.addText(activeTab.title || "Untitled");
@@ -109,7 +109,9 @@ async function createWidget() {
         // Show note preview
         const plainText = stripHtml(activeTab.content || "");
         const maxChars = config.widgetFamily === "large" ? 400 : 120;
-        const preview = plainText.substring(0, maxChars) + (plainText.length > maxChars ? "…" : "");
+        const preview =
+          plainText.substring(0, maxChars) +
+          (plainText.length > maxChars ? "…" : "");
         const content = w.addText(preview || "Empty note");
         content.font = Font.regularSystemFont(11);
         content.textColor = new Color("#cccccc");
@@ -121,7 +123,9 @@ async function createWidget() {
       // Footer: tab count
       const footer = w.addStack();
       footer.centerAlignContent();
-      const countText = footer.addText(`${tabs.length} tab${tabs.length !== 1 ? "s" : ""}`);
+      const countText = footer.addText(
+        `${tabs.length} tab${tabs.length !== 1 ? "s" : ""}`,
+      );
       countText.font = Font.regularSystemFont(9);
       countText.textColor = new Color("#444444");
 

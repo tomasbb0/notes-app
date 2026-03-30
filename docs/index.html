@@ -1871,13 +1871,21 @@
         const opts = {
           method,
           headers: {
-            Authorization: "token " + syncConfig.token,
+            Authorization: "Bearer " + syncConfig.token,
             Accept: "application/vnd.github.v3+json",
+            "Content-Type": "application/json",
           },
         };
         if (body) opts.body = JSON.stringify(body);
+        console.log("[Sync]", method, url);
         const res = await fetch(url, opts);
-        if (!res.ok) throw new Error("GitHub API " + res.status);
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          console.error("[Sync] API error:", res.status, text);
+          throw new Error(
+            "GitHub API " + res.status + ": " + (text || "unknown"),
+          );
+        }
         return res.json();
       }
 
@@ -1903,21 +1911,34 @@
         );
       }
 
-      async function createGist(token) {
-        return await gistRequest("POST", "https://api.github.com/gists", {
-          description: "Notes App Sync Data (do not delete)",
-          public: false,
-          files: {
-            "notes-data.json": {
-              content: JSON.stringify({
-                tabs: [],
-                active: null,
-                deletedIds: [],
-                syncTs: Date.now(),
-              }),
-            },
+      async function createGist() {
+        const res = await fetch("https://api.github.com/gists", {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer " + syncConfig.token,
+            Accept: "application/vnd.github.v3+json",
+            "Content-Type": "application/json",
           },
+          body: JSON.stringify({
+            description: "Notes App Sync Data (do not delete)",
+            public: false,
+            files: {
+              "notes-data.json": {
+                content: JSON.stringify({
+                  tabs: [],
+                  active: null,
+                  deletedIds: [],
+                  syncTs: Date.now(),
+                }),
+              },
+            },
+          }),
         });
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new Error("Create gist failed: " + res.status + " " + text);
+        }
+        return res.json();
       }
 
       function mergeStates(local, remote) {
@@ -1987,16 +2008,29 @@
         setSyncDot("syncing");
         try {
           syncEditor();
+          console.log("[Sync] pulling from gist…");
           const remote = await pullFromGist();
+          console.log(
+            "[Sync] local tabs:",
+            state.tabs.length,
+            "remote tabs:",
+            remote?.tabs?.length || 0,
+          );
           const merged = mergeStates(state, remote);
           state = merged;
           state.syncTs = Date.now();
           localStorage.setItem(KEY, JSON.stringify(state));
+          console.log(
+            "[Sync] pushing merged state…",
+            state.tabs.length,
+            "tabs",
+          );
           await pushToGist(state);
           render();
           setSyncDot("synced");
+          console.log("[Sync] done ✓");
         } catch (e) {
-          console.error("Sync failed:", e);
+          console.error("[Sync] failed:", e);
           setSyncDot("error");
         }
         isSyncing = false;
@@ -2064,23 +2098,28 @@
 
           if (gistId) {
             syncConfig.gistId = gistId;
-            // Verify it works
+            console.log("[Sync] verifying existing gist:", gistId);
             await pullFromGist();
           } else {
-            // Create new gist
-            const gist = await createGist(token);
+            console.log("[Sync] creating new gist…");
+            const gist = await createGist();
             syncConfig.gistId = gist.id;
+            console.log("[Sync] created gist:", gist.id);
+            $("syncGistInput").value = gist.id;
           }
 
           saveSyncConfig();
           updateSyncUI();
           startSyncLoop();
 
-          msgEl.textContent = "Connected! Gist ID: " + syncConfig.gistId;
+          msgEl.innerHTML =
+            '✅ Connected! Gist ID: <b style="user-select:all;cursor:pointer">' +
+            syncConfig.gistId +
+            "</b><br><span style='font-size:9px;color:#888'>Copy this ID to connect other devices</span>";
           msgEl.className = "sync-status-msg success";
-          setTimeout(() => $("syncModal").classList.remove("show"), 1500);
+          setTimeout(() => $("syncModal").classList.remove("show"), 5000);
         } catch (e) {
-          console.error("Sync setup failed:", e);
+          console.error("[Sync] setup failed:", e);
           msgEl.textContent = "Failed: " + e.message;
           msgEl.className = "sync-status-msg error";
           syncConfig = null;
