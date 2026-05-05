@@ -1727,10 +1727,25 @@
             if (!$("formatBar").classList.contains("hidden")) {
               $("formatBar").classList.remove("hidden");
             }
-            $("editor").innerHTML = active.content;
+            // Avoid clobbering the editor (and snapping the caret to the
+            // start) while the user is actively typing. Only assign when the
+            // editor isn't focused and the content actually differs.
+            const editorEl = $("editor");
+            if (
+              document.activeElement !== editorEl &&
+              editorEl.innerHTML !== active.content
+            ) {
+              editorEl.innerHTML = active.content;
+            }
           }
           $("emptyState").style.display = "none";
-          $("titleInput").value = active.title;
+          const titleEl = $("titleInput");
+          if (
+            document.activeElement !== titleEl &&
+            titleEl.value !== active.title
+          ) {
+            titleEl.value = active.title;
+          }
           updateInfo();
         } else {
           $("formatBar").classList.add("hidden");
