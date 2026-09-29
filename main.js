@@ -487,6 +487,7 @@ function createFloatWindow(note) {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      backgroundThrottling: false, // keep following even when another app has focus
       preload: path.join(__dirname, "preload.js"),
     },
   });

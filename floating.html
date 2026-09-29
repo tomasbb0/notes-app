@@ -407,13 +407,10 @@
             said = Math.min(words.length, said + (cfg.wpm / 60) * dt);
             if (said >= words.length) stop();
           } else if (cfg.mode === "ai") {
-            // Transcription arrives about a second late, so glide a few words ahead
-            const since = (Date.now() - lastMatch.t) / 1000;
+            // Only fade words that were actually heard. Nothing moves while I am silent.
             const base = aligner.pos + 1;
-            const lead = since < 2.2 ? Math.min(4, rate * Math.min(since + 0.9, 1.6)) : 0;
-            const target = Math.min(words.length, base + lead);
-            if (target > said) said = Math.min(target, said + Math.max(rate * 1.6, 3) * dt);
-            else if (base < said - 6) said = base; // moved back in the note
+            if (base > said) said = Math.min(base, said + Math.max(rate * 2.5, 5) * dt);
+            else if (base < said) said = base; // moved back in the note
           }
           paint();
         }
@@ -625,7 +622,7 @@
           ws = null;
         }
         stopMic();
-        if (cfg.mode === "ai") said = Math.min(said, aligner.pos + 1 + 2);
+        if (cfg.mode === "ai") said = Math.min(said, aligner.pos + 1);
       }
 
       function restart() {
