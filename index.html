@@ -970,6 +970,12 @@
         <span>See format bar</span>
         <div class="toggle-pill" id="fmtPill"></div>
       </button>
+      <button class="settings-item" id="openTpSettings">
+        <span>🎤 Teleprompter</span>
+        <span style="font-size: 9px; color: #666" id="tpConfigLabel"
+          >No key</span
+        >
+      </button>
       <button class="settings-item" id="openSyncSettings">
         <span>☁️ Sync settings</span>
         <span style="font-size: 9px; color: #666" id="syncConfigLabel"
@@ -1022,6 +1028,74 @@
           </button>
           <button id="syncCancel">Cancel</button>
           <button id="syncSave" class="primary">Connect</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TELEPROMPTER SETTINGS MODAL -->
+    <div class="sync-modal" id="tpModal">
+      <div class="sync-modal-box">
+        <h3>🎤 Teleprompter</h3>
+        <p class="subtitle">
+          Floating notes can follow your voice. Your speech is sent to OpenAI
+          only while a floating note is listening.
+        </p>
+        <label>OpenAI API key</label>
+        <div style="display: flex; gap: 4px">
+          <input
+            id="tpKeyInput"
+            type="password"
+            placeholder="sk-..."
+            autocomplete="off"
+            spellcheck="false"
+            style="flex: 1; min-width: 0"
+          />
+          <button
+            id="tpKeyShow"
+            type="button"
+            style="
+              background: #222;
+              color: #aaa;
+              border: 1px solid #333;
+              border-radius: 5px;
+              font-size: 10px;
+              padding: 0 8px;
+              cursor: pointer;
+            "
+          >
+            Show
+          </button>
+        </div>
+        <p style="font-size: 9px; color: #555; margin-top: 3px">
+          Stored only on this Mac. It is never synced with your notes.
+        </p>
+        <label>Language you speak in</label>
+        <select
+          id="tpLangInput"
+          style="
+            width: 100%;
+            background: #1a1a1a;
+            color: #ddd;
+            border: 1px solid #333;
+            border-radius: 5px;
+            padding: 5px 6px;
+            font-size: 11px;
+          "
+        >
+          <option value="en">English</option>
+          <option value="pt">Portuguese</option>
+          <option value="es">Spanish</option>
+          <option value="fr">French</option>
+          <option value="auto">Detect automatically</option>
+        </select>
+        <div
+          id="tpStatusMsg"
+          class="sync-status-msg"
+          style="display: none"
+        ></div>
+        <div class="sync-modal-btns">
+          <button id="tpCancel">Cancel</button>
+          <button id="tpSave" class="primary">Save</button>
         </div>
       </div>
     </div>
@@ -1169,6 +1243,7 @@
     <div class="ctx" id="ctx">
       <button class="ctx-item" id="ctxRename">✏️ Rename</button>
       <button class="ctx-item" id="ctxDuplicate">📋 Duplicate</button>
+      <button class="ctx-item" id="ctxFloat">🪟 Open floating window</button>
       <div class="ctx-sep"></div>
       <div
         style="display: flex; gap: 4px; padding: 4px 10px; align-items: center"
@@ -1307,6 +1382,7 @@
         clearTimeout(saveTimer);
         saveTimer = setTimeout(() => {
           localStorage.setItem(KEY, JSON.stringify(state));
+          pushFloating(state.active);
           dot.classList.remove("dirty");
           $("savedAt").textContent =
             "saved " +
@@ -1805,9 +1881,11 @@
       // ── CONTEXT MENU ──
       function showCtx(x, y) {
         const m = $("ctx");
-        m.style.left = Math.min(x, window.innerWidth - 160) + "px";
-        m.style.top = Math.min(y, window.innerHeight - 140) + "px";
         m.classList.add("show");
+        const w = m.offsetWidth || 160,
+          h = m.offsetHeight || 140;
+        m.style.left = Math.max(4, Math.min(x, window.innerWidth - w - 4)) + "px";
+        m.style.top = Math.max(4, Math.min(y, window.innerHeight - h - 4)) + "px";
       }
       function hideCtx() {
         $("ctx").classList.remove("show");
@@ -1827,6 +1905,96 @@
         hideCtx();
         duplicateTab(ctxId);
       };
+      // ── FLOATING NOTE ──
+      function escHtml(str) {
+        return String(str || "").replace(
+          /[&<>"]/g,
+          (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
+        );
+      }
+      function floatNote(t) {
+        const html =
+          t.type === "task"
+            ? "<ul>" +
+              (t.tasks || [])
+                .filter((k) => (k.text || "").trim())
+                .map((k) => "<li>" + escHtml(k.text) + "</li>")
+                .join("") +
+              "</ul>"
+            : t.content || "";
+        return { id: t.id, title: t.title, html };
+      }
+      function pushFloating(id) {
+        if (!window.notesAPI || !window.notesAPI.noteUpdated) return;
+        const t = state.tabs.find((t) => t.id === id);
+        if (t) window.notesAPI.noteUpdated(floatNote(t));
+      }
+      $("ctxFloat").onclick = () => {
+        hideCtx();
+        if (!window.notesAPI || !window.notesAPI.openFloating) return;
+        if (ctxId === state.active) sync();
+        const t = state.tabs.find((t) => t.id === ctxId);
+        if (t) window.notesAPI.openFloating(floatNote(t));
+      };
+
+      // ── TELEPROMPTER SETTINGS ──
+      async function updateTpLabel() {
+        if (!window.notesAPI || !window.notesAPI.getTeleprompterConfig) {
+          $("openTpSettings").style.display = "none";
+          $("ctxFloat").style.display = "none";
+          return;
+        }
+        const c = await window.notesAPI.getTeleprompterConfig();
+        $("tpConfigLabel").textContent = c && c.openaiKey ? "Key set" : "No key";
+      }
+      $("openTpSettings").addEventListener("click", async () => {
+        $("settingsDropdown").classList.remove("show");
+        const c = (await window.notesAPI.getTeleprompterConfig()) || {};
+        $("tpKeyInput").value = c.openaiKey || "";
+        $("tpKeyInput").type = "password";
+        $("tpKeyShow").textContent = "Show";
+        $("tpLangInput").value = c.language || "en";
+        $("tpStatusMsg").style.display = "none";
+        $("tpModal").classList.add("show");
+      });
+      $("tpKeyShow").addEventListener("click", () => {
+        const inp = $("tpKeyInput");
+        const show = inp.type === "password";
+        inp.type = show ? "text" : "password";
+        $("tpKeyShow").textContent = show ? "Hide" : "Show";
+      });
+      $("tpCancel").addEventListener("click", () =>
+        $("tpModal").classList.remove("show"),
+      );
+      $("tpSave").addEventListener("click", async () => {
+        const key = $("tpKeyInput").value.trim();
+        const msg = $("tpStatusMsg");
+        const show = (text, cls) => {
+          msg.textContent = text;
+          msg.className = "sync-status-msg " + cls;
+          msg.style.display = "block";
+        };
+        $("tpSave").disabled = true;
+        if (key) {
+          show("Checking the key…", "success");
+          const r = await window.notesAPI.testOpenAIKey(key);
+          if (!r.ok) {
+            show("That key did not work: " + r.error, "error");
+            $("tpSave").disabled = false;
+            return;
+          }
+        }
+        await window.notesAPI.setTeleprompterConfig({
+          openaiKey: key,
+          language: $("tpLangInput").value,
+        });
+        $("tpSave").disabled = false;
+        show(key ? "Saved. The key works." : "Saved. Key removed.", "success");
+        updateTpLabel();
+        setTimeout(() => $("tpModal").classList.remove("show"), 1200);
+      });
+      updateTpLabel();
+
       $("ctxExport").onclick = () => {
         hideCtx();
         const t = state.tabs.find((t) => t.id === ctxId);

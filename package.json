@@ -20,10 +20,22 @@
     "mac": {
       "category": "public.app-category.productivity",
       "icon": "assets/icon.icns",
-      "target": "dir"
+      "target": "dir",
+      "hardenedRuntime": true,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Notes listens to your voice so a floating note can follow what you are saying."
+      }
     },
     "directories": {
       "output": "dist"
-    }
+    },
+    "files": [
+      "**/*",
+      "!dist${/*}",
+      "!build${/*}",
+      "!integrations${/*}"
+    ]
   }
 }

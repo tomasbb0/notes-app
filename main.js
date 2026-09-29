@@ -1,4 +1,12 @@
-const { app, BrowserWindow, ipcMain } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  screen,
+  session,
+  systemPreferences,
+} = require("electron");
+const fs = require("fs");
 const path = require("path");
 const { exec } = require("child_process");
 
@@ -348,6 +356,266 @@ end tell`;
   }
 });
 
+// ── FLOATING NOTE (teleprompter) ──
+const floatWindows = new Map(); // note id -> BrowserWindow
+const floatNotes = new Map(); // note id -> { id, title, html }
+
+function tpConfigPath() {
+  return path.join(app.getPath("userData"), "teleprompter.json");
+}
+const TP_DEFAULTS = {
+  openaiKey: "",
+  language: "en",
+  wpm: 130,
+  fontSize: 22,
+  mode: "ai",
+  bounds: null,
+};
+function readTpConfig() {
+  try {
+    return Object.assign(
+      {},
+      TP_DEFAULTS,
+      JSON.parse(fs.readFileSync(tpConfigPath(), "utf8")),
+    );
+  } catch (e) {
+    return Object.assign({}, TP_DEFAULTS);
+  }
+}
+function writeTpConfig(patch) {
+  const cfg = Object.assign(readTpConfig(), patch || {});
+  // The key lives only in this private file, never in the synced notes data
+  fs.writeFileSync(tpConfigPath(), JSON.stringify(cfg, null, 2), {
+    mode: 0o600,
+  });
+  return cfg;
+}
+
+async function mintRealtimeSecret(cfg, hint) {
+  if (!cfg.openaiKey) throw new Error("No OpenAI API key set. Add it in Settings.");
+  const transcription = { model: "gpt-live-transcribe" };
+  if (cfg.language && cfg.language !== "auto")
+    transcription.language = cfg.language;
+  const attempt = async (withPrompt) => {
+    const t = Object.assign({}, transcription);
+    if (withPrompt && hint) t.prompt = hint;
+    const res = await fetch("https://api.openai.com/v1/realtime/client_secrets", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + cfg.openaiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        session: {
+          type: "transcription",
+          audio: {
+            input: {
+              format: { type: "audio/pcm", rate: 24000 },
+              transcription: t,
+              turn_detection: null,
+            },
+          },
+        },
+      }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.value) {
+      const msg =
+        (json.error && json.error.message) || "OpenAI error " + res.status;
+      const err = new Error(msg);
+      err.status = res.status;
+      throw err;
+    }
+    return json.value;
+  };
+  try {
+    return await attempt(true);
+  } catch (e) {
+    if (hint && e.status === 400) return attempt(false);
+    throw e;
+  }
+}
+
+function createFloatWindow(note) {
+  const existing = floatWindows.get(note.id);
+  if (existing && !existing.isDestroyed()) {
+    existing.show();
+    existing.focus();
+    existing.webContents.send("float-note", note);
+    return;
+  }
+  const cfg = readTpConfig();
+  const display = screen.getPrimaryDisplay();
+  const wa = display.workArea;
+  const w = 560,
+    h = 230;
+  let bounds = {
+    x: Math.round(wa.x + (wa.width - w) / 2),
+    y: wa.y,
+    width: w,
+    height: h,
+  };
+  if (cfg.bounds && cfg.bounds.width) {
+    const b = cfg.bounds;
+    const onScreen = screen
+      .getAllDisplays()
+      .some(
+        (d) =>
+          b.x < d.bounds.x + d.bounds.width &&
+          b.x + b.width > d.bounds.x &&
+          b.y < d.bounds.y + d.bounds.height &&
+          b.y + 40 > d.bounds.y,
+      );
+    if (onScreen) bounds = b;
+  }
+  // Cascade when several floating notes are open
+  const offset = floatWindows.size * 24;
+  const win = new BrowserWindow({
+    x: bounds.x + offset,
+    y: bounds.y + offset,
+    width: bounds.width,
+    height: bounds.height,
+    minWidth: 200,
+    minHeight: 70,
+    frame: false,
+    hasShadow: true,
+    alwaysOnTop: true,
+    fullscreenable: false,
+    skipTaskbar: true,
+    backgroundColor: "#0e0e0e",
+    show: false,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, "preload.js"),
+    },
+  });
+  win.setAlwaysOnTop(true, "screen-saver");
+  win.setVisibleOnAllWorkspaces(true, {
+    visibleOnFullScreen: true,
+    skipTransformProcessType: true,
+  });
+  win.loadFile("floating.html", { query: { id: note.id } });
+  win.once("ready-to-show", () => win.show());
+  win.webContents.on("before-input-event", (event, input) => {
+    if (input.meta && input.alt && input.key.toLowerCase() === "i") {
+      win.webContents.toggleDevTools();
+    }
+  });
+  let saveT = null;
+  const remember = () => {
+    clearTimeout(saveT);
+    saveT = setTimeout(() => {
+      if (!win.isDestroyed()) writeTpConfig({ bounds: win.getBounds() });
+    }, 400);
+  };
+  win.on("moved", remember);
+  win.on("resized", remember);
+  win.on("closed", () => {
+    clearTimeout(saveT);
+    floatWindows.delete(note.id);
+  });
+  floatWindows.set(note.id, win);
+}
+
+ipcMain.handle("float-open", (_, note) => {
+  if (!note || !note.id) return false;
+  floatNotes.set(note.id, note);
+  createFloatWindow(note);
+  return true;
+});
+
+ipcMain.handle("float-note-updated", (_, note) => {
+  if (!note || !note.id) return false;
+  floatNotes.set(note.id, note);
+  const win = floatWindows.get(note.id);
+  if (win && !win.isDestroyed()) win.webContents.send("float-note", note);
+  return true;
+});
+
+ipcMain.handle("float-get-note", (_, id) => floatNotes.get(id) || null);
+
+ipcMain.handle("float-close", (e) => {
+  const win = BrowserWindow.fromWebContents(e.sender);
+  if (win && win !== mainWindow) win.close();
+});
+
+ipcMain.handle("float-get-bounds", (e) => {
+  const win = BrowserWindow.fromWebContents(e.sender);
+  return win ? win.getBounds() : null;
+});
+
+ipcMain.on("float-move", (e, x, y) => {
+  const win = BrowserWindow.fromWebContents(e.sender);
+  if (win && win !== mainWindow) win.setPosition(Math.round(x), Math.round(y));
+});
+
+ipcMain.handle("tp-get-config", (e) => {
+  const cfg = readTpConfig();
+  // Only the main window (settings) may read the key itself
+  const isMain =
+    mainWindow && !mainWindow.isDestroyed() && e.sender === mainWindow.webContents;
+  if (!isMain) {
+    const { openaiKey, ...rest } = cfg;
+    return Object.assign(rest, { hasKey: !!openaiKey });
+  }
+  return cfg;
+});
+
+ipcMain.handle("tp-set-config", (e, patch) => {
+  const clean = {};
+  const p = patch || {};
+  const isMain =
+    mainWindow && !mainWindow.isDestroyed() && e.sender === mainWindow.webContents;
+  if (isMain && typeof p.openaiKey === "string")
+    clean.openaiKey = p.openaiKey.trim();
+  if (typeof p.language === "string") clean.language = p.language;
+  if (Number.isFinite(p.wpm)) clean.wpm = Math.max(40, Math.min(400, p.wpm));
+  if (Number.isFinite(p.fontSize))
+    clean.fontSize = Math.max(10, Math.min(72, p.fontSize));
+  if (typeof p.mode === "string") clean.mode = p.mode;
+  const cfg = writeTpConfig(clean);
+  for (const w of floatWindows.values()) {
+    if (!w.isDestroyed() && w.webContents !== e.sender) {
+      const { openaiKey, ...rest } = cfg;
+      w.webContents.send("tp-config", Object.assign(rest, { hasKey: !!openaiKey }));
+    }
+  }
+  return true;
+});
+
+ipcMain.handle("tp-test-key", async (_, key) => {
+  try {
+    await mintRealtimeSecret(
+      Object.assign(readTpConfig(), { openaiKey: String(key || "").trim() }),
+    );
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle("tp-ensure-mic", async () => {
+  if (process.platform !== "darwin") return true;
+  if (app.commandLine.hasSwitch("notes-skip-mic-check")) return true;
+  const status = systemPreferences.getMediaAccessStatus("microphone");
+  if (status === "granted") return true;
+  if (status === "denied" || status === "restricted") return false;
+  return systemPreferences.askForMediaAccess("microphone");
+});
+
+ipcMain.handle("tp-realtime-secret", async (_, hint) => {
+  try {
+    const value = await mintRealtimeSecret(
+      readTpConfig(),
+      String(hint || "").slice(0, 900),
+    );
+    return { ok: true, value };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
 app.whenReady().then(() => {
   if (process.platform === "darwin") {
     // Briefly hide dock to get accessory process type (for fullscreen overlay)
@@ -357,6 +625,15 @@ app.whenReady().then(() => {
       app.dock.show();
     }, 200);
   }
+  // Only our own pages may use the microphone (floating note voice following)
+  const ownPage = (url) => String(url || "").startsWith("file://");
+  session.defaultSession.setPermissionRequestHandler((wc, permission, cb, details) => {
+    const url = (details && details.requestingUrl) || (wc && wc.getURL());
+    cb(permission === "media" && ownPage(url));
+  });
+  session.defaultSession.setPermissionCheckHandler((wc, permission, origin) => {
+    return permission === "media" && (ownPage(origin) || ownPage(wc && wc.getURL()));
+  });
   createWindow();
 });
 

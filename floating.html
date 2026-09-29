@@ -1,0 +1,765 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Floating note</title>
+    <style>
+      :root {
+        --bg: #0e0e0e;
+        --future: #9b9b9b;
+        --now: #ffffff;
+        --said: rgba(255, 255, 255, 0.2);
+        --accent: #ffcf5c;
+        --bar: rgba(24, 24, 24, 0.94);
+        --size: 22px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: var(--bg);
+        color: var(--future);
+        font-family:
+          -apple-system,
+          BlinkMacSystemFont,
+          "SF Pro Text",
+          "Helvetica Neue",
+          sans-serif;
+        overflow: hidden;
+        user-select: none;
+        -webkit-user-select: none;
+        cursor: default;
+      }
+      #scroller {
+        position: absolute;
+        inset: 0;
+        overflow-y: auto;
+        padding: 4px 16px 0 16px;
+        scrollbar-width: none;
+      }
+      #scroller::-webkit-scrollbar {
+        display: none;
+      }
+      #text {
+        font-size: var(--size);
+        line-height: 1.34;
+        font-weight: 500;
+        letter-spacing: 0.005em;
+        word-break: break-word;
+      }
+      #text p,
+      #text div,
+      #text ul,
+      #text ol,
+      #text h1,
+      #text h2,
+      #text h3 {
+        margin: 0;
+        padding: 0;
+        font-size: inherit;
+        font-weight: inherit;
+      }
+      #text ul,
+      #text ol {
+        padding-left: 1.1em;
+      }
+      #text li {
+        margin: 0.12em 0;
+      }
+      #text b,
+      #text strong {
+        font-weight: 750;
+      }
+      #text u {
+        text-underline-offset: 3px;
+      }
+      #text a {
+        color: inherit;
+      }
+      #text * {
+        background: transparent !important;
+        color: inherit !important;
+      }
+      .w,
+      .p {
+        transition: color 0.35s ease;
+      }
+      #text .cur .w,
+      #text .cur .p {
+        color: var(--now) !important;
+      }
+      #text .said,
+      #text .cur .said {
+        color: var(--said) !important;
+      }
+      body.plain #text {
+        color: #e8e8e8;
+      }
+      #spacer {
+        height: 100vh;
+      }
+      #empty {
+        color: #666;
+        font-size: 13px;
+        padding: 18px 4px;
+      }
+
+      /* Close button: only shows when the mouse is at the very top */
+      #close {
+        position: fixed;
+        top: 4px;
+        left: 5px;
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        border: none;
+        padding: 0;
+        background: rgba(255, 95, 86, 0.92);
+        color: rgba(60, 0, 0, 0.85);
+        font-size: 10px;
+        line-height: 15px;
+        text-align: center;
+        font-weight: 700;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.15s ease;
+        cursor: pointer;
+        z-index: 20;
+      }
+      body.top #close {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      #dot {
+        position: fixed;
+        top: 6px;
+        right: 7px;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: transparent;
+        z-index: 20;
+        pointer-events: none;
+      }
+      body.listening #dot {
+        background: #ff4d4d;
+        animation: pulse 1.4s ease-in-out infinite;
+      }
+      body.connecting #dot {
+        background: #ffb02e;
+      }
+      body.running #dot {
+        background: #4cd964;
+      }
+      @keyframes pulse {
+        50% {
+          opacity: 0.25;
+        }
+      }
+
+      /* Controls: only show when the mouse is at the very bottom */
+      #bar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 8px;
+        background: var(--bar);
+        border-top: 1px solid #262626;
+        font-size: 11px;
+        color: #bbb;
+        transform: translateY(100%);
+        transition: transform 0.16s ease;
+        z-index: 15;
+        white-space: nowrap;
+      }
+      body.bottom #bar,
+      body.error #bar {
+        transform: translateY(0);
+      }
+      #bar button,
+      #bar select {
+        background: #242424;
+        color: #ddd;
+        border: 1px solid #333;
+        border-radius: 5px;
+        font-size: 11px;
+        height: 22px;
+        padding: 0 7px;
+        cursor: pointer;
+        font-family: inherit;
+      }
+      #bar button:hover {
+        background: #303030;
+      }
+      #play {
+        min-width: 30px;
+        font-size: 12px !important;
+      }
+      #play.on {
+        background: #3a1f1f;
+        border-color: #6b2b2b;
+        color: #ff8a80;
+      }
+      #speedVal,
+      #sizeVal {
+        min-width: 50px;
+        text-align: center;
+        font-variant-numeric: tabular-nums;
+        color: #999;
+      }
+      #heard {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: #6f6f6f;
+        direction: rtl;
+        text-align: left;
+        font-size: 10.5px;
+      }
+      body.error #heard {
+        color: #ff8a80;
+        direction: ltr;
+      }
+      .grp {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+      }
+      body[data-mode="off"] #play,
+      body[data-mode="off"] #restart,
+      body[data-mode="off"] #speedGrp,
+      body[data-mode="ai"] #speedGrp {
+        display: none;
+      }
+    </style>
+  </head>
+  <body data-mode="ai">
+    <button id="close" class="ctl" title="Close">×</button>
+    <div id="dot"></div>
+    <div id="scroller">
+      <div id="text"></div>
+      <div id="spacer"></div>
+    </div>
+    <div id="bar" class="ctl">
+      <button id="play" title="Start / pause (Space)">▶</button>
+      <button id="restart" title="Back to the start (R)">↺</button>
+      <select id="mode" title="How the note follows you (M)">
+        <option value="ai">Follow my voice</option>
+        <option value="auto">Auto-scroll</option>
+        <option value="off">Plain note</option>
+      </select>
+      <div class="grp" id="speedGrp">
+        <button id="slower" title="Slower (↓)">−</button>
+        <span id="speedVal">130 wpm</span>
+        <button id="faster" title="Faster (↑)">+</button>
+      </div>
+      <div class="grp">
+        <button id="smaller" title="Smaller text (⌘−)">A−</button>
+        <button id="bigger" title="Bigger text (⌘+)">A+</button>
+      </div>
+      <span id="heard"></span>
+    </div>
+
+    <script src="aligner.js"></script>
+    <script>
+      const api = window.notesAPI;
+      const $ = (id) => document.getElementById(id);
+      const noteId = new URLSearchParams(location.search).get("id");
+      const { Aligner } = window.AlignerLib;
+
+      let cfg = { language: "en", wpm: 130, fontSize: 22, mode: "ai", hasKey: false };
+      let words = []; // word spans, in reading order
+      let trailing = []; // punctuation spans grouped by the word they follow
+      let aligner = new Aligner([]);
+      let said = 0; // how many words are faded (float while animating)
+      let paintedSaid = 0;
+      let curBlock = null;
+      let playing = false;
+      let rate = 2.2; // script words per second, learned while speaking
+      let lastMatch = { t: 0, pos: -1 };
+      let scrollTarget = 0;
+      let userScrolledAt = 0;
+      let lastHtml = null;
+
+      // ── Rendering the note ──
+      function sanitize(html) {
+        const tpl = document.createElement("template");
+        tpl.innerHTML = html || "";
+        tpl.content
+          .querySelectorAll("script,style,iframe,object,embed,link,meta,input,button,textarea")
+          .forEach((n) => n.remove());
+        tpl.content.querySelectorAll("*").forEach((el) => {
+          [...el.attributes].forEach((a) => {
+            const n = a.name.toLowerCase();
+            if (n.startsWith("on") || n === "contenteditable" || n === "style" || n === "class" || n === "id")
+              el.removeAttribute(a.name);
+            if (n === "href") el.removeAttribute(a.name);
+          });
+        });
+        return tpl.content;
+      }
+
+      function renderNote(note) {
+        const html = (note && note.html) || "";
+        if (html === lastHtml) return;
+        const firstRender = lastHtml === null;
+        lastHtml = html;
+        document.title = (note && note.title) || "Floating note";
+        const root = $("text");
+        root.textContent = "";
+        root.appendChild(sanitize(html));
+        words = [];
+        trailing = [];
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        const nodes = [];
+        while (walker.nextNode()) nodes.push(walker.currentNode);
+        for (const node of nodes) {
+          const parts = node.nodeValue.split(/(\s+|(?<=[\-‐-―/])(?=\S))/);
+          if (parts.length === 1 && !/\S/.test(parts[0])) continue;
+          const frag = document.createDocumentFragment();
+          for (const part of parts) {
+            if (!part) continue;
+            if (!/\S/.test(part)) {
+              frag.appendChild(document.createTextNode(part));
+              continue;
+            }
+            const span = document.createElement("span");
+            span.textContent = part;
+            if (/[\p{L}\p{N}]/u.test(part)) {
+              span.className = "w";
+              span.dataset.i = words.length;
+              words.push(span);
+            } else {
+              span.className = "p";
+              const k = Math.max(0, words.length - 1);
+              (trailing[k] = trailing[k] || []).push(span);
+            }
+            frag.appendChild(span);
+          }
+          node.parentNode.replaceChild(frag, node);
+        }
+        if (!words.length) {
+          const e = document.createElement("div");
+          e.id = "empty";
+          e.textContent = "This note is empty. Write something in it and it will show up here.";
+          root.appendChild(e);
+        }
+        const keep = firstRender ? 0 : Math.min(Math.floor(said), words.length);
+        aligner = new Aligner(words.map((w) => w.textContent));
+        aligner.seek(keep - 1);
+        said = keep;
+        paintedSaid = 0;
+        curBlock = null;
+        paint(true);
+      }
+
+      function blockOf(el) {
+        const b = el.closest("li,p,div,h1,h2,h3,h4,h5,h6,blockquote,tr");
+        return b && b.id !== "text" && $("text").contains(b) ? b : null;
+      }
+
+      function setSaid(span, on, i) {
+        span.classList.toggle("said", on);
+        const t = trailing[i];
+        if (t) for (const p of t) p.classList.toggle("said", on);
+      }
+
+      function paint(force) {
+        const plain = cfg.mode === "off";
+        document.body.classList.toggle("plain", plain);
+        const n = plain ? 0 : Math.max(0, Math.min(words.length, Math.floor(said)));
+        if (n > paintedSaid) for (let i = paintedSaid; i < n; i++) setSaid(words[i], true, i);
+        else if (n < paintedSaid) for (let i = n; i < paintedSaid; i++) setSaid(words[i], false, i);
+        if (n !== paintedSaid || force) {
+          paintedSaid = n;
+          const next = words[Math.min(n, words.length - 1)];
+          const block = next && !plain ? blockOf(next) : null;
+          if (block !== curBlock) {
+            if (curBlock) curBlock.classList.remove("cur");
+            if (block) block.classList.add("cur");
+            curBlock = block;
+          }
+          if (next && !plain) {
+            const sc = $("scroller");
+            const top =
+              next.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop;
+            scrollTarget = Math.max(0, top - 4);
+          }
+        }
+      }
+
+      // ── Animation loop: fade and scroll ──
+      let lastFrame = performance.now();
+      function frame(now) {
+        const dt = Math.min(0.1, (now - lastFrame) / 1000);
+        lastFrame = now;
+        if (playing && words.length) {
+          if (cfg.mode === "auto") {
+            said = Math.min(words.length, said + (cfg.wpm / 60) * dt);
+            if (said >= words.length) stop();
+          } else if (cfg.mode === "ai") {
+            // Transcription arrives about a second late, so glide a few words ahead
+            const since = (Date.now() - lastMatch.t) / 1000;
+            const base = aligner.pos + 1;
+            const lead = since < 2.2 ? Math.min(4, rate * Math.min(since + 0.9, 1.6)) : 0;
+            const target = Math.min(words.length, base + lead);
+            if (target > said) said = Math.min(target, said + Math.max(rate * 1.6, 3) * dt);
+            else if (base < said - 6) said = base; // moved back in the note
+          }
+          paint();
+        }
+        if (cfg.mode !== "off" && Date.now() - userScrolledAt > 2500) {
+          const sc = $("scroller");
+          const d = scrollTarget - sc.scrollTop;
+          if (Math.abs(d) > 0.5) sc.scrollTop += d * Math.min(1, dt * 5);
+        }
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+
+      // ── Voice following ──
+      let ws = null,
+        audioCtx = null,
+        micStream = null,
+        workletNode = null,
+        pending = "",
+        flushTimer = null,
+        heardTail = [],
+        retries = 0;
+
+      function showError(msg) {
+        document.body.classList.toggle("error", !!msg);
+        if (msg) $("heard").textContent = msg;
+      }
+
+      function heard(word) {
+        heardTail.push(word);
+        if (heardTail.length > 14) heardTail.shift();
+        if (!document.body.classList.contains("error"))
+          $("heard").textContent = "‎" + heardTail.join(" ");
+      }
+
+      function feedWord(word) {
+        heard(word);
+        const before = aligner.pos;
+        const p = aligner.feed(word, Date.now());
+        if (p === null) return;
+        const now = Date.now();
+        if (p > before && lastMatch.t && now - lastMatch.t < 4000) {
+          const inst = (p - lastMatch.pos) / Math.max(0.25, (now - lastMatch.t) / 1000);
+          if (inst > 0.2 && inst < 6) rate = rate * 0.75 + inst * 0.25;
+        }
+        lastMatch = { t: now, pos: p };
+        if (p + 1 >= words.length) setTimeout(() => playing && aligner.pos + 1 >= words.length && stop(), 2500);
+      }
+
+      function onDelta(delta) {
+        pending += delta;
+        const parts = pending.split(/\s+/);
+        pending = parts.pop();
+        for (const w of parts) if (w) feedWord(w);
+        clearTimeout(flushTimer);
+        flushTimer = setTimeout(() => {
+          if (pending) {
+            const w = pending;
+            pending = "";
+            feedWord(w);
+          }
+        }, 380);
+      }
+
+      const WORKLET = `
+        class Pcm extends AudioWorkletProcessor {
+          constructor(){ super(); this.buf=new Int16Array(2400); this.n=0; }
+          process(inputs){
+            const ch=inputs[0] && inputs[0][0];
+            if(ch){ for(let i=0;i<ch.length;i++){
+              const s=Math.max(-1,Math.min(1,ch[i]));
+              this.buf[this.n++]= s<0 ? s*0x8000 : s*0x7fff;
+              if(this.n===this.buf.length){ this.port.postMessage(this.buf.buffer.slice(0)); this.n=0; }
+            } }
+            return true;
+          }
+        }
+        registerProcessor('pcm', Pcm);`;
+
+      function b64(buf) {
+        const bytes = new Uint8Array(buf);
+        let s = "";
+        for (let i = 0; i < bytes.length; i += 0x8000)
+          s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+        return btoa(s);
+      }
+
+      async function startMic() {
+        if (micStream) return;
+        const ok = await api.ensureMicrophone();
+        if (!ok)
+          throw new Error(
+            "Microphone is blocked. Allow Notes in System Settings › Privacy › Microphone.",
+          );
+        micStream = await navigator.mediaDevices.getUserMedia({
+          audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        });
+        audioCtx = new AudioContext({ sampleRate: 24000 });
+        const url = URL.createObjectURL(new Blob([WORKLET], { type: "application/javascript" }));
+        await audioCtx.audioWorklet.addModule(url);
+        URL.revokeObjectURL(url);
+        const src = audioCtx.createMediaStreamSource(micStream);
+        workletNode = new AudioWorkletNode(audioCtx, "pcm");
+        workletNode.port.onmessage = (e) => {
+          if (ws && ws.readyState === 1)
+            ws.send(JSON.stringify({ type: "input_audio_buffer.append", audio: b64(e.data) }));
+        };
+        const mute = audioCtx.createGain();
+        mute.gain.value = 0;
+        src.connect(workletNode).connect(mute).connect(audioCtx.destination);
+      }
+
+      function stopMic() {
+        try {
+          if (workletNode) workletNode.disconnect();
+          if (micStream) micStream.getTracks().forEach((t) => t.stop());
+          if (audioCtx) audioCtx.close();
+        } catch (e) {}
+        workletNode = micStream = audioCtx = null;
+      }
+
+      async function connect() {
+        document.body.classList.add("connecting");
+        const hint = words
+          .slice(Math.max(0, Math.floor(said)), Math.floor(said) + 140)
+          .map((w) => w.textContent)
+          .join(" ");
+        const res = await api.getRealtimeSecret(hint);
+        if (!res.ok) throw new Error(res.error);
+        if (!playing) return;
+        await new Promise((resolve, reject) => {
+          const sock = new WebSocket("wss://api.openai.com/v1/realtime", [
+            "realtime",
+            "openai-insecure-api-key." + res.value,
+          ]);
+          let opened = false;
+          sock.onopen = () => {
+            opened = true;
+            ws = sock;
+            retries = 0;
+            document.body.classList.remove("connecting");
+            document.body.classList.add("listening");
+            resolve();
+          };
+          sock.onmessage = (m) => {
+            let e;
+            try {
+              e = JSON.parse(m.data);
+            } catch (_) {
+              return;
+            }
+            if (e.type && e.type.endsWith("input_audio_transcription.delta")) onDelta(e.delta || "");
+            else if (e.type === "error")
+              showError("OpenAI: " + ((e.error && e.error.message) || "unknown error"));
+          };
+          sock.onerror = () => {
+            if (!opened) reject(new Error("Could not reach OpenAI. Check your connection."));
+          };
+          sock.onclose = () => {
+            if (ws === sock) ws = null;
+            document.body.classList.remove("listening");
+            if (opened && playing && cfg.mode === "ai" && retries < 5) {
+              retries++;
+              setTimeout(() => playing && connect().catch((e) => fail(e)), 800 * retries);
+            }
+          };
+        });
+      }
+
+      function fail(e) {
+        stop();
+        showError((e && e.message) || String(e));
+      }
+
+      async function start() {
+        if (playing || cfg.mode === "off" || !words.length) return;
+        showError("");
+        if (said >= words.length) restart();
+        playing = true;
+        $("play").textContent = "❚❚";
+        $("play").classList.add("on");
+        if (cfg.mode === "auto") {
+          document.body.classList.add("running");
+          return;
+        }
+        heardTail = [];
+        $("heard").textContent = "";
+        aligner.seek(Math.floor(said) - 1);
+        lastMatch = { t: 0, pos: aligner.pos };
+        try {
+          await startMic();
+          if (!playing) return stopMic();
+          await connect();
+        } catch (e) {
+          fail(e);
+        }
+      }
+
+      function stop() {
+        playing = false;
+        $("play").textContent = "▶";
+        $("play").classList.remove("on");
+        document.body.classList.remove("listening", "connecting", "running");
+        clearTimeout(flushTimer);
+        pending = "";
+        if (ws) {
+          try {
+            ws.close();
+          } catch (e) {}
+          ws = null;
+        }
+        stopMic();
+        if (cfg.mode === "ai") said = Math.min(said, aligner.pos + 1 + 2);
+      }
+
+      function restart() {
+        said = 0;
+        aligner.seek(-1);
+        lastMatch = { t: 0, pos: -1 };
+        userScrolledAt = 0;
+        paint(true);
+      }
+
+      function jumpTo(i) {
+        said = i;
+        aligner.seek(i - 1);
+        lastMatch = { t: 0, pos: i - 1 };
+        userScrolledAt = 0;
+        paint(true);
+      }
+
+      // ── Settings shown in the bar ──
+      function applyCfg() {
+        document.documentElement.style.setProperty("--size", cfg.fontSize + "px");
+        document.body.dataset.mode = cfg.mode;
+        $("mode").value = cfg.mode;
+        $("speedVal").textContent = cfg.wpm + " wpm";
+        requestAnimationFrame(() => paint(true));
+      }
+      function patch(p) {
+        Object.assign(cfg, p);
+        applyCfg();
+        api.setTeleprompterConfig(p);
+      }
+      function setMode(m) {
+        if (m === cfg.mode) return;
+        stop();
+        showError("");
+        heardTail = [];
+        $("heard").textContent = "";
+        patch({ mode: m });
+        if (m === "ai" && !cfg.hasKey)
+          showError("Add your OpenAI key in Notes › Settings › Teleprompter.");
+      }
+
+      $("play").onclick = () => (playing ? stop() : start());
+      $("restart").onclick = restart;
+      $("mode").onchange = (e) => setMode(e.target.value);
+      $("slower").onclick = () => patch({ wpm: Math.max(40, cfg.wpm - 10) });
+      $("faster").onclick = () => patch({ wpm: Math.min(400, cfg.wpm + 10) });
+      $("smaller").onclick = () => patch({ fontSize: Math.max(10, cfg.fontSize - 1) });
+      $("bigger").onclick = () => patch({ fontSize: Math.min(72, cfg.fontSize + 1) });
+      $("close").onclick = () => {
+        stop();
+        api.closeFloating();
+      };
+
+      window.addEventListener("keydown", (e) => {
+        if (e.target.tagName === "SELECT") return;
+        const k = e.key;
+        if (k === " ") {
+          e.preventDefault();
+          playing ? stop() : start();
+        } else if (k === "ArrowUp") {
+          e.preventDefault();
+          $("faster").click();
+        } else if (k === "ArrowDown") {
+          e.preventDefault();
+          $("slower").click();
+        } else if ((e.metaKey || e.ctrlKey) && (k === "=" || k === "+")) {
+          e.preventDefault();
+          $("bigger").click();
+        } else if ((e.metaKey || e.ctrlKey) && k === "-") {
+          e.preventDefault();
+          $("smaller").click();
+        } else if (k.toLowerCase() === "r" && !e.metaKey) restart();
+        else if (k.toLowerCase() === "m" && !e.metaKey) {
+          const order = ["ai", "auto", "off"];
+          setMode(order[(order.indexOf(cfg.mode) + 1) % 3]);
+        } else if ((e.metaKey || e.ctrlKey) && k.toLowerCase() === "w") {
+          e.preventDefault();
+          $("close").click();
+        }
+      });
+
+      // ── Hover zones, dragging the window, clicking a word ──
+      let drag = null;
+      window.addEventListener("mousemove", (e) => {
+        if (drag) {
+          const dx = e.screenX - drag.sx,
+            dy = e.screenY - drag.sy;
+          if (!drag.moved && Math.hypot(dx, dy) > 4) drag.moved = true;
+          if (drag.moved) api.moveFloating(drag.wx + dx, drag.wy + dy);
+          return;
+        }
+        document.body.classList.toggle("top", e.clientY <= 26);
+        document.body.classList.toggle("bottom", e.clientY >= window.innerHeight - 40);
+      });
+      document.documentElement.addEventListener("mouseleave", () => {
+        if (!drag) document.body.classList.remove("top", "bottom");
+      });
+      window.addEventListener("mousedown", (e) => {
+        if (e.button !== 0 || e.target.closest(".ctl")) return;
+        drag = { sx: e.screenX, sy: e.screenY, wx: window.screenX, wy: window.screenY, moved: false };
+      });
+      window.addEventListener("mouseup", (e) => {
+        const d = drag;
+        drag = null;
+        if (!d || d.moved || cfg.mode === "off") return;
+        const w = e.target.closest && e.target.closest(".w");
+        if (w) jumpTo(+w.dataset.i);
+      });
+      $("scroller").addEventListener(
+        "wheel",
+        () => {
+          userScrolledAt = Date.now();
+        },
+        { passive: true },
+      );
+      window.addEventListener("resize", () => paint(true));
+      window.addEventListener("beforeunload", stop);
+
+      // ── Boot ──
+      (async () => {
+        cfg = Object.assign(cfg, (await api.getTeleprompterConfig()) || {});
+        if (!["ai", "auto", "off"].includes(cfg.mode)) cfg.mode = "ai";
+        applyCfg();
+        api.onFloatingNote((note) => note && note.id === noteId && renderNote(note));
+        api.onTeleprompterConfig((c) => {
+          const mode = cfg.mode;
+          Object.assign(cfg, c, { mode });
+          applyCfg();
+        });
+        renderNote((await api.getFloatingNote(noteId)) || { html: "" });
+        if (cfg.mode === "ai" && !cfg.hasKey)
+          showError("Add your OpenAI key in Notes › Settings › Teleprompter.");
+      })();
+    </script>
+  </body>
+</html>
