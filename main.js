@@ -11,8 +11,7 @@ const path = require("path");
 const { exec } = require("child_process");
 
 let mainWindow;
-let isCollapsed = false;
-let expandedBounds = null; // remember size/pos before collapse
+const collapsed = new WeakMap(); // window -> its size and limits before collapse
 let chromeHidden = false; // main window toolbars hidden
 let quitting = false;
 
@@ -85,15 +84,15 @@ function wireShortcuts(win) {
 
 // Web hover only runs in the focused window, and Notes usually sits on top of
 // whatever you are working in. Reveal the corner buttons from the real cursor.
-const CORNER = { width: 74, height: 38 };
+const CORNER = { left: 74, right: 92, height: 38 };
 function checkCorners() {
   const cursor = screen.getCursorScreenPoint();
   for (const win of [mainWindow, ...openTabWindows()]) {
     if (!win || win.isDestroyed() || !win.isVisible()) continue;
     const b = win.getBounds();
     const top = cursor.y >= b.y && cursor.y < b.y + CORNER.height;
-    const right = cursor.x >= b.x + b.width - CORNER.width;
-    const left = cursor.x < b.x + CORNER.width;
+    const right = cursor.x >= b.x + b.width - CORNER.right;
+    const left = cursor.x < b.x + CORNER.left;
     const inside = top && cursor.x >= b.x && cursor.x < b.x + b.width;
     let side = "";
     if (inside && right) side = "right";
@@ -226,7 +225,7 @@ ipcMain.on("tab-edit", (_, tab) => {
 ipcMain.handle("set-chrome-hidden", (e, hidden) => {
   if (BrowserWindow.fromWebContents(e.sender) !== mainWindow) return;
   chromeHidden = !!hidden;
-  if (process.platform === "darwin" && !isCollapsed) {
+  if (process.platform === "darwin" && !collapsed.has(mainWindow)) {
     mainWindow.setWindowButtonVisibility(!chromeHidden);
   }
 });
@@ -260,60 +259,61 @@ ipcMain.handle("get-always-on-top", () => {
   return mainWindow.isAlwaysOnTop();
 });
 
-ipcMain.handle("collapse", () => {
-  if (!isCollapsed) {
-    expandedBounds = mainWindow.getBounds();
-    mainWindow.setMinimumSize(60, 60);
-    mainWindow.setSize(60, 60);
-    // Keep at same position (top-right corner of where it was)
-    const b = expandedBounds;
-    mainWindow.setPosition(b.x + b.width - 60, b.y);
-    mainWindow.setResizable(false);
-    // Hide traffic lights when collapsed
-    if (process.platform === "darwin") {
-      mainWindow.setWindowButtonVisibility(false);
-    }
-    // macOS draws a dark hairline with the window shadow; the bubble has none
-    mainWindow.setHasShadow(false);
-    isCollapsed = true;
+ipcMain.handle("collapse", (e) => {
+  const win = BrowserWindow.fromWebContents(e.sender);
+  if (!win || collapsed.has(win)) return true;
+  const b = win.getBounds();
+  collapsed.set(win, { bounds: b, minimum: win.getMinimumSize() });
+  win.setMinimumSize(60, 60);
+  win.setSize(60, 60);
+  // Keep at same position (top-right corner of where it was)
+  win.setPosition(b.x + b.width - 60, b.y);
+  win.setResizable(false);
+  // Hide traffic lights when collapsed
+  if (process.platform === "darwin" && win === mainWindow) {
+    win.setWindowButtonVisibility(false);
   }
+  // macOS draws a dark hairline with the window shadow; the bubble has none
+  win.setHasShadow(false);
   return true;
 });
 
-ipcMain.handle("expand", () => {
-  if (isCollapsed) {
-    const collapsed = mainWindow.getBounds();
-    mainWindow.setResizable(true);
-    mainWindow.setMinimumSize(240, 200);
-    const w = expandedBounds ? expandedBounds.width : 340;
-    const h = expandedBounds ? expandedBounds.height : 520;
-    // Expand from where the collapsed square currently is
-    mainWindow.setBounds({
-      x: collapsed.x + 60 - w,
-      y: collapsed.y,
-      width: w,
-      height: h,
-    });
-    // Restore traffic lights, unless the toolbars are hidden
-    if (process.platform === "darwin") {
-      mainWindow.setWindowButtonVisibility(!chromeHidden);
-    }
-    mainWindow.setHasShadow(true);
-    isCollapsed = false;
+ipcMain.handle("expand", (e) => {
+  const win = BrowserWindow.fromWebContents(e.sender);
+  const was = win && collapsed.get(win);
+  if (!was) return true;
+  const now = win.getBounds();
+  win.setResizable(true);
+  win.setMinimumSize(...was.minimum);
+  // Expand from where the collapsed square currently is
+  win.setBounds({
+    x: now.x + 60 - was.bounds.width,
+    y: now.y,
+    width: was.bounds.width,
+    height: was.bounds.height,
+  });
+  // Restore traffic lights, unless the toolbars are hidden
+  if (process.platform === "darwin" && win === mainWindow) {
+    win.setWindowButtonVisibility(!chromeHidden);
   }
+  win.setHasShadow(true);
+  collapsed.delete(win);
   return true;
 });
 
-ipcMain.handle("is-collapsed", () => isCollapsed);
+ipcMain.handle("is-collapsed", (e) =>
+  collapsed.has(BrowserWindow.fromWebContents(e.sender)),
+);
 
-ipcMain.handle("get-position", () => {
-  const bounds = mainWindow.getBounds();
+ipcMain.handle("get-position", (e) => {
+  const bounds = BrowserWindow.fromWebContents(e.sender).getBounds();
   return [bounds.x, bounds.y];
 });
 
-ipcMain.handle("set-position", (_, x, y) => {
-  const bounds = mainWindow.getBounds();
-  mainWindow.setBounds({
+ipcMain.handle("set-position", (e, x, y) => {
+  const win = BrowserWindow.fromWebContents(e.sender);
+  const bounds = win.getBounds();
+  win.setBounds({
     x: Math.round(x),
     y: Math.round(y),
     width: bounds.width,
