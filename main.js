@@ -13,64 +13,243 @@ const { exec } = require("child_process");
 let mainWindow;
 let isCollapsed = false;
 let expandedBounds = null; // remember size/pos before collapse
+let chromeHidden = false; // main window toolbars hidden
+let quitting = false;
+
+// A non-activating panel takes clicks and typing without making Notes the
+// active app. macOS jumps to another Space when an app activates, so clicking
+// into a note on top of a full-screen app can no longer pull you away from it.
+const PANEL = process.platform === "darwin" ? { type: "panel" } : {};
 
 function createWindow() {
   mainWindow = new BrowserWindow({
+    ...PANEL,
     width: 340,
     height: 520,
     minWidth: 240,
     minHeight: 200,
     alwaysOnTop: true,
+    acceptFirstMouse: true,
     titleBarStyle: "hiddenInset",
-    backgroundColor: "#111111",
+    backgroundColor: "#0f0f11",
     trafficLightPosition: { x: 12, y: 12 },
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      backgroundThrottling: false, // keeps syncing and serving detached tabs
+      preload: path.join(__dirname, "preload.js"),
+    },
+  });
+
+  mainWindow.loadFile("index.html");
+  wireShortcuts(mainWindow);
+
+  // Make it float above ALL windows including fullscreen on macOS
+  applyAlwaysOnTop(mainWindow);
+
+  mainWindow.on("ready-to-show", () => {
+    mainWindow.show();
+  });
+
+  // Closing only hides it: detached tabs and sync keep running through this
+  // window, and clicking the Dock icon brings it straight back.
+  mainWindow.on("close", (e) => {
+    if (quitting) return;
+    e.preventDefault();
+    mainWindow.hide();
+  });
+}
+
+// A panel never becomes the active app, so the menu bar on screen can belong
+// to something else. Editing shortcuts are handled here instead of relying on
+// the Edit menu being reachable.
+function wireShortcuts(win) {
+  win.webContents.on("before-input-event", (event, input) => {
+    if (input.type !== "keyDown" || !input.meta) return;
+    const wc = win.webContents;
+    const key = input.key.toLowerCase();
+    if (input.alt) {
+      if (key === "i") wc.toggleDevTools(); // Cmd+Option+I
+      return;
+    }
+    if (key === "c") wc.copy();
+    else if (key === "x") wc.cut();
+    else if (key === "v") input.shift ? wc.pasteAndMatchStyle() : wc.paste();
+    else if (key === "a") wc.selectAll();
+    else if (key === "z") input.shift ? wc.redo() : wc.undo();
+    else if (key === "q") app.quit();
+    else return;
+    event.preventDefault();
+  });
+}
+
+// Web hover only runs in the focused window, and Notes usually sits on top of
+// whatever you are working in. Reveal the corner buttons from the real cursor.
+const CORNER = { width: 74, height: 38 };
+function checkCorners() {
+  const cursor = screen.getCursorScreenPoint();
+  for (const win of [mainWindow, ...openTabWindows()]) {
+    if (!win || win.isDestroyed() || !win.isVisible()) continue;
+    const b = win.getBounds();
+    const inside =
+      cursor.x >= b.x + b.width - CORNER.width &&
+      cursor.x < b.x + b.width &&
+      cursor.y >= b.y &&
+      cursor.y < b.y + CORNER.height;
+    if (inside !== !!win.cornerPeek) {
+      win.cornerPeek = inside;
+      win.webContents.send("corner-peek", inside);
+    }
+  }
+}
+
+function applyAlwaysOnTop(win) {
+  win.setAlwaysOnTop(true, "screen-saver");
+  win.setVisibleOnAllWorkspaces(true, {
+    visibleOnFullScreen: true,
+    skipTransformProcessType: true,
+  });
+  win.setFullScreenable(false);
+}
+
+// ── DETACHED TABS ──
+// Dragging a tab out opens this window on the same note. The tab stays in the
+// main window, which remains the only place notes are saved and synced.
+const tabWindows = new Map(); // tab id -> BrowserWindow
+const tabData = new Map(); // tab id -> latest tab, read when a window boots
+const focusOnShow = new Set(); // released before the window finished loading
+
+const openTabWindows = () =>
+  [...tabWindows.values()].filter((w) => !w.isDestroyed());
+
+function announceTabWindows() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send("tab-windows", [...tabWindows.keys()]);
+  }
+}
+
+function createTabWindow(tab, x, y) {
+  const win = new BrowserWindow({
+    ...PANEL,
+    x: Math.round(x),
+    y: Math.round(y),
+    width: 340,
+    height: 420,
+    minWidth: 200,
+    minHeight: 120,
+    frame: false,
+    hasShadow: true,
+    acceptFirstMouse: true,
+    fullscreenable: false,
+    backgroundColor: "#0f0f11",
+    show: false,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, "preload.js"),
     },
   });
-
-  mainWindow.loadFile("index.html");
-
-  // Enable DevTools shortcut (Cmd+Option+I)
-  mainWindow.webContents.on("before-input-event", (event, input) => {
-    if (input.meta && input.alt && input.key.toLowerCase() === "i") {
-      mainWindow.webContents.toggleDevTools();
-    }
+  if (mainWindow.isAlwaysOnTop()) applyAlwaysOnTop(win);
+  win.loadFile("index.html", { query: { tab: tab.id } });
+  win.once("ready-to-show", () => {
+    if (focusOnShow.delete(tab.id)) win.show();
+    else win.showInactive();
   });
-
-  // Make it float above ALL windows including fullscreen on macOS
-  applyAlwaysOnTop();
-
-  mainWindow.on("ready-to-show", () => {
-    mainWindow.show();
+  wireShortcuts(win);
+  win.on("closed", () => {
+    tabWindows.delete(tab.id);
+    tabData.delete(tab.id);
+    focusOnShow.delete(tab.id);
+    announceTabWindows();
   });
+  tabWindows.set(tab.id, win);
+  announceTabWindows();
 }
 
-function applyAlwaysOnTop() {
-  mainWindow.setAlwaysOnTop(true, "screen-saver");
-  mainWindow.setVisibleOnAllWorkspaces(true, {
-    visibleOnFullScreen: true,
-    skipTransformProcessType: true,
-  });
-  mainWindow.setFullScreenable(false);
-}
+ipcMain.handle("tab-detach", (_, tab, x, y) => {
+  if (!tab || !tab.id) return { created: false };
+  tabData.set(tab.id, tab);
+  const open = tabWindows.get(tab.id);
+  if (open && !open.isDestroyed()) {
+    open.setPosition(Math.round(x), Math.round(y));
+    return { created: false };
+  }
+  createTabWindow(tab, x, y);
+  return { created: true };
+});
+
+ipcMain.on("tab-detach-move", (_, id, x, y) => {
+  const win = tabWindows.get(id);
+  if (win && !win.isDestroyed()) win.setPosition(Math.round(x), Math.round(y));
+});
+
+ipcMain.on("tab-detach-cancel", (_, id) => {
+  const win = tabWindows.get(id);
+  if (win && !win.isDestroyed()) win.close();
+});
+
+ipcMain.on("tab-detach-finish", (_, id) => {
+  const win = tabWindows.get(id);
+  if (!win || win.isDestroyed()) return;
+  if (win.isVisible()) win.focus();
+  else focusOnShow.add(id);
+});
+
+ipcMain.on("tab-window-close", (_, id) => {
+  const win = tabWindows.get(id);
+  if (win && !win.isDestroyed()) win.close();
+});
+
+ipcMain.on("tab-window-data", (e, id) => {
+  e.returnValue = tabData.get(id) || null;
+});
+
+// Main window -> the tab's own window
+ipcMain.on("tab-push", (_, tab) => {
+  if (!tab || !tab.id) return;
+  tabData.set(tab.id, tab);
+  const win = tabWindows.get(tab.id);
+  if (win && !win.isDestroyed()) win.webContents.send("tab-update", tab);
+});
+
+// The tab's own window -> main window
+ipcMain.on("tab-edit", (_, tab) => {
+  if (!tab || !tab.id) return;
+  tabData.set(tab.id, tab);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send("tab-edit", tab);
+  }
+});
+
+ipcMain.handle("set-chrome-hidden", (e, hidden) => {
+  if (BrowserWindow.fromWebContents(e.sender) !== mainWindow) return;
+  chromeHidden = !!hidden;
+  if (process.platform === "darwin" && !isCollapsed) {
+    mainWindow.setWindowButtonVisibility(!chromeHidden);
+  }
+});
+
+ipcMain.handle("close-window", (e) => {
+  const win = BrowserWindow.fromWebContents(e.sender);
+  if (win) win.close();
+});
 
 // ── IPC handlers ──
 
 ipcMain.handle("toggle-always-on-top", () => {
   const current = mainWindow.isAlwaysOnTop();
   if (current) {
-    mainWindow.setAlwaysOnTop(false);
-    mainWindow.setVisibleOnAllWorkspaces(false);
+    for (const win of [mainWindow, ...openTabWindows()]) {
+      win.setAlwaysOnTop(false);
+      win.setVisibleOnAllWorkspaces(false);
+    }
   } else {
     // Re-do dock hide/show to restore accessory process type
     if (process.platform === "darwin") {
       app.dock.hide();
       setTimeout(() => app.dock.show(), 200);
     }
-    applyAlwaysOnTop();
+    for (const win of [mainWindow, ...openTabWindows()]) applyAlwaysOnTop(win);
   }
   return !current;
 });
@@ -111,9 +290,9 @@ ipcMain.handle("expand", () => {
       width: w,
       height: h,
     });
-    // Restore traffic lights
+    // Restore traffic lights, unless the toolbars are hidden
     if (process.platform === "darwin") {
-      mainWindow.setWindowButtonVisibility(true);
+      mainWindow.setWindowButtonVisibility(!chromeHidden);
     }
     isCollapsed = false;
   }
@@ -636,12 +815,18 @@ app.whenReady().then(() => {
     return permission === "media" && (ownPage(origin) || ownPage(wc && wc.getURL()));
   });
   createWindow();
+  setInterval(checkCorners, 120);
 });
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
 
+app.on("before-quit", () => {
+  quitting = true;
+});
+
 app.on("activate", () => {
-  if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.show();
+  else createWindow();
 });

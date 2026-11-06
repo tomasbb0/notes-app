@@ -12,6 +12,24 @@ contextBridge.exposeInMainWorld("notesAPI", {
   restoreSnapshot: (snapshot) =>
     ipcRenderer.invoke("restore-snapshot", snapshot),
 
+  // Windows opened by dragging a tab out of the main window
+  detachTab: (tab, x, y) => ipcRenderer.invoke("tab-detach", tab, x, y),
+  moveDetached: (id, x, y) => ipcRenderer.send("tab-detach-move", id, x, y),
+  cancelDetach: (id) => ipcRenderer.send("tab-detach-cancel", id),
+  finishDetach: (id) => ipcRenderer.send("tab-detach-finish", id),
+  closeDetached: (id) => ipcRenderer.send("tab-window-close", id),
+  detachedTab: (id) => ipcRenderer.sendSync("tab-window-data", id),
+  pushTab: (tab) => ipcRenderer.send("tab-push", tab),
+  sendTabEdit: (tab) => ipcRenderer.send("tab-edit", tab),
+  onTabUpdate: (cb) => ipcRenderer.on("tab-update", (_, tab) => cb(tab)),
+  onTabEdit: (cb) => ipcRenderer.on("tab-edit", (_, tab) => cb(tab)),
+  onTabWindows: (cb) => ipcRenderer.on("tab-windows", (_, ids) => cb(ids)),
+
+  // Hide / show toolbars
+  setChromeHidden: (hidden) => ipcRenderer.invoke("set-chrome-hidden", hidden),
+  closeWindow: () => ipcRenderer.invoke("close-window"),
+  onCornerPeek: (cb) => ipcRenderer.on("corner-peek", (_, on) => cb(on)),
+
   // Floating note (teleprompter)
   openFloating: (note) => ipcRenderer.invoke("float-open", note),
   noteUpdated: (note) => ipcRenderer.invoke("float-note-updated", note),

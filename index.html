@@ -10,98 +10,210 @@
     <title>Notes</title>
     <style>
       :root {
-        --accent: #fff;
-        --text: #e0e0e0;
-        --muted: #888;
-        --bg: #111;
-        --card: #1a1a1a;
-        --border: #2a2a2a;
+        --bg: #0f0f11;
+        --chrome: #16161a;
+        --surface: #1b1b20;
+        --surface-2: #25252b;
+        --surface-3: #303037;
+        --float: #222227;
+        --text: #ececf1;
+        --text-2: #a3a3ad;
+        --text-3: #6c6c78;
+        --accent: #8b9bff;
+        --danger: #ff6b6b;
+        --ok: #4ade80;
+        --warn: #fbbf24;
+        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.32);
+        --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.42);
+        --shadow-lg: 0 20px 56px rgba(0, 0, 0, 0.6);
+        --ease: cubic-bezier(0.32, 0.72, 0, 1);
       }
       * {
         margin: 0;
         padding: 0;
         box-sizing: border-box;
       }
+      button,
+      input,
+      select {
+        border: 0;
+        outline: 0;
+        font: inherit;
+        color: inherit;
+        background: none;
+      }
+      ::selection {
+        background: rgba(139, 155, 255, 0.3);
+      }
       body {
         font-family:
-          "SF Pro Display",
           -apple-system,
+          "SF Pro Text",
+          BlinkMacSystemFont,
           sans-serif;
+        -webkit-font-smoothing: antialiased;
         background: var(--bg);
         color: var(--text);
         font-size: 12px;
-        overflow-x: hidden;
+        overflow: hidden;
         height: 100vh;
         display: flex;
         flex-direction: column;
       }
+      body.dragging,
+      body.dragging * {
+        cursor: grabbing !important;
+        user-select: none;
+      }
+
+      /* ═══ ICONS: one size everywhere ═══ */
+      .i {
+        width: 14px;
+        height: 14px;
+        display: block;
+        flex-shrink: 0;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .icon-btn {
+        width: 24px;
+        height: 24px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 7px;
+        color: var(--text-3);
+        cursor: pointer;
+        transition:
+          background 0.12s,
+          color 0.12s;
+        -webkit-app-region: no-drag;
+      }
+      .icon-btn:hover {
+        background: var(--surface-2);
+        color: var(--text);
+      }
+
+      /* ═══ TOOLBARS: everything that is not the note itself ═══ */
+      .chrome {
+        display: grid;
+        grid-template-rows: 1fr;
+        flex-shrink: 0;
+        background: var(--chrome);
+        transition:
+          grid-template-rows 0.26s var(--ease),
+          opacity 0.18s;
+      }
+      .chrome-inner {
+        min-height: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end; /* content leaves through the top */
+      }
+      body.chrome-hidden .chrome {
+        grid-template-rows: 0fr;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      /* Lets a window with no toolbar still be moved by its top edge */
+      .grab-strip {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 16px;
+        z-index: 40;
+        -webkit-app-region: drag;
+      }
+      body.chrome-hidden .grab-strip {
+        display: block;
+      }
+
+      /* Top right corner: revealed on hover */
+      .corner {
+        display: none;
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 74px;
+        height: 38px;
+        z-index: 50;
+        -webkit-app-region: no-drag;
+      }
+      body.chrome-hidden .corner,
+      body.detached .corner {
+        display: block;
+      }
+      .corner-pill {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        display: flex;
+        gap: 2px;
+        padding: 2px;
+        border-radius: 9px;
+        background: var(--float);
+        box-shadow: var(--shadow-md);
+        opacity: 0;
+        transform: translateY(-5px);
+        transition:
+          opacity 0.14s,
+          transform 0.2s var(--ease);
+      }
+      .corner:hover .corner-pill,
+      .corner.peek .corner-pill {
+        opacity: 1;
+        transform: none;
+      }
 
       /* ═══ HEADER ═══ */
       .header {
-        background: linear-gradient(135deg, #0d0d0d, #1a1a1a);
-        padding: 0 14px;
-        padding-left: 78px; /* space for traffic lights */
+        padding: 0 8px 0 78px; /* space for traffic lights */
         height: 38px;
+        flex-shrink: 0;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        border-bottom: 1px solid var(--border);
         -webkit-app-region: drag;
         user-select: none;
       }
       .header-left {
         display: flex;
         align-items: center;
-        gap: 6px;
+        gap: 7px;
       }
       .header-logo {
         width: 18px;
         height: 18px;
-        border-radius: 4px;
-        background: #000;
-        border: 1px solid #333;
+        border-radius: 5px;
+        background: #fff;
+        color: #111;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-weight: 900;
+        font-weight: 800;
         font-size: 10px;
-        color: #fff;
       }
       .header h1 {
-        font-size: 11px;
-        font-weight: 800;
-        color: #fff;
-        letter-spacing: 1.5px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-2);
       }
       .header-right {
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: 2px;
         -webkit-app-region: no-drag;
       }
-      .header .tab-count {
-        font-size: 10px;
-        color: var(--muted);
-        font-weight: 600;
-      }
-      .header-btn {
-        background: none;
-        border: none;
-        color: #666;
-        cursor: pointer;
-        width: 24px;
-        height: 24px;
-        border-radius: 5px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 13px;
-        transition: all 0.15s;
-        -webkit-app-region: no-drag;
-      }
-      .header-btn:hover {
-        background: #222;
-        color: #fff;
+      .header-right .sync-dot {
+        margin-right: 6px;
       }
 
       /* ═══ SETTINGS DROPDOWN ═══ */
@@ -109,14 +221,13 @@
         display: none;
         position: absolute;
         top: 36px;
-        right: 10px;
-        background: #1e1e1e;
-        border: 1px solid #333;
-        border-radius: 8px;
-        padding: 4px;
-        min-width: 180px;
+        right: 8px;
+        background: var(--float);
+        border-radius: 12px;
+        padding: 5px;
+        min-width: 200px;
         z-index: 9999;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+        box-shadow: var(--shadow-md);
       }
       .settings-dropdown.show {
         display: block;
@@ -124,33 +235,38 @@
       .settings-item {
         display: flex;
         align-items: center;
-        justify-content: space-between;
+        gap: 9px;
         width: 100%;
+        height: 30px;
+        padding: 0 9px;
         text-align: left;
-        background: none;
-        border: none;
-        color: #ccc;
-        padding: 6px 10px;
-        font-size: 11px;
+        color: var(--text-2);
+        font-size: 12px;
         cursor: pointer;
-        border-radius: 5px;
-        gap: 8px;
+        border-radius: 8px;
+      }
+      .settings-item .grow {
+        flex: 1;
+      }
+      .settings-item .hint {
+        font-size: 10px;
+        color: var(--text-3);
       }
       .settings-item:hover {
-        background: #333;
-        color: #fff;
+        background: var(--surface-2);
+        color: var(--text);
       }
       .toggle-pill {
         width: 28px;
         height: 16px;
         border-radius: 8px;
-        background: #333;
+        background: var(--surface-3);
         position: relative;
         transition: background 0.2s;
         flex-shrink: 0;
       }
       .toggle-pill.on {
-        background: #999;
+        background: #fff;
       }
       .toggle-pill::after {
         content: "";
@@ -160,12 +276,12 @@
         width: 12px;
         height: 12px;
         border-radius: 50%;
-        background: #666;
-        transition: all 0.2s;
+        background: var(--text-3);
+        transition: all 0.2s var(--ease);
       }
       .toggle-pill.on::after {
         left: 14px;
-        background: #fff;
+        background: #111;
       }
 
       /* ═══ COLLAPSED STATE ═══ */
@@ -176,36 +292,29 @@
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        background: var(--bg);
-        border-radius: 12px;
       }
       .collapsed-view .mini-logo {
-        width: 36px;
-        height: 36px;
-        border-radius: 8px;
-        background: #000;
-        border: 1px solid #333;
+        width: 100%;
+        height: 100%;
+        color: #000;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-weight: 900;
-        font-size: 18px;
-        color: #fff;
+        font-weight: 800;
+        font-size: 26px;
         cursor: pointer;
-        transition: all 0.15s;
         user-select: none;
       }
-      .collapsed-view .mini-logo:hover {
-        background: #222;
-        border-color: #555;
+      body.collapsed {
+        background: #fff;
       }
       body.collapsed .collapsed-view {
         display: flex;
       }
-      body.collapsed .header,
-      body.collapsed .tabs,
+      body.collapsed .chrome,
+      body.collapsed .grab-strip,
+      body.collapsed .corner,
       body.collapsed .title-bar,
-      body.collapsed .format-bar,
       body.collapsed .editor,
       body.collapsed .task-view,
       body.collapsed .empty,
@@ -213,271 +322,262 @@
         display: none !important;
       }
 
-      /* ═══ TAB BAR (same as BCG popup day tabs) ═══ */
+      /* ═══ TAB BAR ═══ */
       .tabs {
         display: flex;
-        gap: 3px;
-        padding: 6px 10px;
-        background: #0d0d0d;
-        border-bottom: 1px solid var(--border);
-        overflow-x: auto;
+        gap: 6px;
+        padding: 0 8px 6px;
         align-items: center;
         flex-shrink: 0;
       }
-      .tabs::-webkit-scrollbar {
-        height: 0;
-      }
-      .tab {
-        flex-shrink: 0;
-        padding: 5px 10px;
-        text-align: center;
-        font-size: 10px;
-        font-weight: 700;
-        color: #666;
-        background: transparent;
-        border: 1px solid transparent;
-        border-radius: 6px;
-        cursor: pointer;
-        transition: all 0.15s;
+      .tab-scroll {
+        position: relative;
+        flex: 1;
+        min-width: 0;
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: 3px;
+        overflow-x: auto;
+      }
+      .tab-scroll::-webkit-scrollbar {
+        height: 0;
+      }
+      .tab-tools {
+        display: flex;
+        gap: 2px;
+        flex-shrink: 0;
+      }
+      .tab {
+        position: relative;
+        flex-shrink: 0;
+        height: 26px;
+        max-width: 150px;
+        padding: 0 10px;
+        display: flex;
+        align-items: center;
+        font-size: 11.5px;
+        font-weight: 500;
         white-space: nowrap;
-        max-width: 140px;
+        color: var(--text-3);
+        border-radius: 7px;
+        cursor: default;
+        user-select: none;
+        transition:
+          background 0.12s,
+          color 0.12s;
       }
       .tab:hover {
-        color: #aaa;
-        background: #1a1a1a;
+        color: var(--text-2);
+        background: var(--surface);
       }
       .tab.active {
-        background: #fff;
-        color: #111;
-        border-color: #fff;
+        background: var(--surface-3);
+        color: #fff;
+      }
+      .tab.colored {
+        color: var(--tab-c);
+        background: color-mix(in srgb, var(--tab-c) 14%, transparent);
+      }
+      .tab.colored.active {
+        color: #fff;
+        background: var(--tab-c);
       }
       .tab-label {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        min-width: 0;
+      }
+      .tab-name {
         overflow: hidden;
         text-overflow: ellipsis;
       }
-      .tab .tab-x {
-        font-size: 9px;
-        color: #555;
-        cursor: pointer;
-        padding: 0 2px;
-        border-radius: 3px;
-        display: none;
-        flex-shrink: 0;
-      }
-      .tab:hover .tab-x {
-        display: inline;
-      }
-      .tab.active .tab-x {
-        color: #999;
-        display: inline;
-      }
-      .tab .tab-x:hover {
-        color: #f44;
-        background: rgba(255, 68, 68, 0.15);
-      }
-      .tab-add {
-        flex-shrink: 0;
-        background: none;
-        border: 1px dashed #333;
-        color: #555;
-        font-size: 13px;
-        font-weight: 400;
-        width: 22px;
-        height: 22px;
-        border-radius: 5px;
-        cursor: pointer;
+      /* The cross stays out of sight until the right end of the tab is hovered */
+      .tab-x-zone {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 26px;
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: all 0.15s;
       }
-      .tab-add:hover {
-        border-color: #666;
+      .tab-x {
+        width: 18px;
+        height: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 5px;
+        opacity: 0;
+        transition: opacity 0.1s;
+      }
+      .tab-x-zone:hover .tab-x {
+        opacity: 1;
+      }
+      .tab-x:hover {
+        background: rgba(255, 255, 255, 0.16);
         color: #fff;
-        background: #222;
+      }
+      .tab:has(.tab-x-zone:hover) .tab-label {
+        -webkit-mask-image: linear-gradient(
+          to left,
+          transparent 14px,
+          #000 26px
+        );
+      }
+      .tab.tab-lift {
+        z-index: 5;
+        transition: none;
+        color: #fff;
+        background: var(--surface-3);
+        box-shadow: var(--shadow-md);
+      }
+      .tab.tab-lift.colored {
+        background: var(--tab-c);
+      }
+      .tab.tab-away {
+        opacity: 0.35;
+        box-shadow: none;
       }
 
-      /* ═══ TITLE BAR ═══ */
-      .title-bar {
-        display: none;
-      }
+      /* ═══ TITLE BAR (hidden, rename happens on the tab) ═══ */
+      .title-bar,
       .title-input {
         display: none;
       }
-      .title-input::placeholder {
-        color: #333;
-      }
       .save-dot {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: #4a4;
-        flex-shrink: 0;
-        transition: background 0.3s;
         position: absolute;
-        top: 16px;
-        right: 60px;
       }
-      .save-dot.dirty {
-        background: #f90;
-      }
-      /* Inline tab rename input */
       .tab-rename-input {
-        background: transparent;
-        border: none;
-        border-bottom: 1px solid #555;
+        background: rgba(255, 255, 255, 0.1);
         color: inherit;
         font-size: inherit;
         font-weight: inherit;
         font-family: inherit;
-        padding: 0;
-        border-radius: 0;
-        outline: none;
+        padding: 2px 5px;
+        margin: 0 -5px;
+        border-radius: 5px;
         width: 100%;
         min-width: 30px;
       }
 
-      /* ═══ EDITOR ═══ */
+      /* ═══ FORMAT BAR ═══ */
       .format-bar {
         display: flex;
         align-items: center;
-        gap: 2px;
-        padding: 4px 8px;
-        background: #0d0d0d;
-        border-bottom: 1px solid var(--border);
+        padding: 0 8px 6px;
         flex-shrink: 0;
         flex-wrap: nowrap;
+        overflow-x: auto;
+      }
+      .format-bar::-webkit-scrollbar {
+        height: 0;
       }
       .format-bar.hidden {
         display: none;
       }
       .fmt-btn {
-        background: none;
-        border: 1px solid transparent;
-        color: #666;
-        cursor: pointer;
-        width: 24px;
+        width: 22px;
         height: 24px;
-        border-radius: 4px;
+        flex-shrink: 0;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 11px;
+        border-radius: 6px;
+        color: var(--text-3);
+        font-size: 12px;
         font-weight: 600;
-        transition: all 0.15s;
-        flex-shrink: 0;
+        cursor: pointer;
+        transition:
+          background 0.12s,
+          color 0.12s;
       }
       .fmt-btn:hover {
-        background: #222;
-        color: #fff;
+        background: var(--surface-2);
+        color: var(--text);
       }
-      .fmt-btn.active {
-        background: #333;
-        color: #fff;
-        border-color: #555;
-      }
-      .fmt-sep {
-        width: 1px;
-        height: 16px;
-        background: #2a2a2a;
-        margin: 0 2px;
+      .fmt-gap {
+        width: 6px;
         flex-shrink: 0;
       }
       .fmt-select {
-        background: #1a1a1a;
-        border: 1px solid #333;
-        color: #aaa;
-        font-size: 10px;
-        padding: 2px 4px;
-        border-radius: 4px;
-        outline: none;
-        cursor: pointer;
+        height: 24px;
+        width: 38px;
+        padding: 0 6px;
         flex-shrink: 0;
+        appearance: none;
+        text-align: center;
+        font-size: 11px;
+        color: var(--text-3);
+        background: var(--surface);
+        border-radius: 6px;
+        cursor: pointer;
       }
       .fmt-select:hover {
-        border-color: #555;
+        color: var(--text);
+        background: var(--surface-2);
       }
       .fmt-color {
-        width: 20px;
-        height: 20px;
-        border: 1px solid #333;
-        border-radius: 4px;
-        padding: 0;
-        cursor: pointer;
-        background: none;
-        overflow: hidden;
+        width: 14px;
+        height: 14px;
+        margin: 5px 4px;
+        border-radius: 50%;
         flex-shrink: 0;
         position: relative;
+        cursor: pointer;
+        overflow: hidden;
       }
       .fmt-color input[type="color"] {
         position: absolute;
-        top: -2px;
-        left: -2px;
-        width: 28px;
-        height: 28px;
-        border: none;
-        padding: 0;
+        top: -5px;
+        left: -5px;
+        width: 24px;
+        height: 24px;
         cursor: pointer;
         opacity: 0;
       }
       .fmt-color.text-color {
-        background: #e0e0e0;
+        background: var(--text);
       }
       .fmt-color.highlight-color {
-        background: #444;
+        background: var(--surface-3);
       }
-      /* Format bar toggle */
-      .fmt-toggle {
-        background: none;
-        border: none;
-        color: #555;
-        cursor: pointer;
-        font-size: 11px;
-        padding: 0 4px;
-        transition: color 0.15s;
-      }
-      .fmt-toggle:hover {
-        color: #fff;
-      }
+
+      /* ═══ EDITOR ═══ */
       .editor {
         flex: 1;
         width: 100%;
         background: var(--bg);
         color: var(--text);
-        border: none;
         outline: none;
-        padding: 10px 14px;
-        font-family:
-          "SF Pro Display",
-          -apple-system,
-          sans-serif;
+        padding: 12px 16px;
         font-size: 13px;
-        line-height: 1.65;
+        line-height: 1.6;
         overflow-y: auto;
         word-wrap: break-word;
         white-space: pre-wrap;
+        transition: padding-top 0.26s var(--ease);
+      }
+      body.chrome-hidden .editor {
+        padding-top: 22px;
       }
       .editor:empty::before {
         content: "Start typing…";
-        color: #2a2a2a;
+        color: var(--surface-3);
       }
-      .editor::-webkit-scrollbar {
-        width: 4px;
-      }
-      .editor::-webkit-scrollbar-thumb {
-        background: #333;
-        border-radius: 2px;
+      .editor::-webkit-scrollbar,
+      .task-list::-webkit-scrollbar {
+        width: 0;
       }
       .editor a {
-        color: #6af;
-        text-decoration: underline;
+        color: var(--accent);
+        text-decoration: none;
         cursor: pointer;
       }
       .editor a:hover {
-        color: #9cf;
+        text-decoration: underline;
       }
       .editor ul,
       .editor ol {
@@ -495,61 +595,74 @@
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        background: #1e1e1e;
-        border: 1px solid #444;
-        border-radius: 10px;
-        padding: 14px;
+        background: var(--float);
+        border-radius: 14px;
+        padding: 16px;
         z-index: 10000;
-        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+        box-shadow: var(--shadow-lg);
         width: 260px;
       }
       .link-modal.show {
         display: block;
       }
       .link-modal h3 {
-        font-size: 12px;
-        color: #fff;
+        font-size: 13px;
+        font-weight: 600;
         margin-bottom: 10px;
       }
       .link-modal input {
         width: 100%;
-        background: #111;
-        border: 1px solid #333;
-        color: #fff;
-        padding: 6px 8px;
-        border-radius: 6px;
-        font-size: 11px;
-        outline: none;
+        background: var(--bg);
+        padding: 8px 10px;
+        border-radius: 8px;
+        font-size: 12px;
         margin-bottom: 8px;
       }
-      .link-modal input:focus {
-        border-color: #6af;
+      .link-modal input:focus,
+      .sync-modal-box input:focus {
+        box-shadow: 0 0 0 2px rgba(139, 155, 255, 0.35);
       }
-      .link-modal-btns {
+      .link-modal-btns,
+      .sync-modal-btns {
         display: flex;
         gap: 6px;
         justify-content: flex-end;
       }
-      .link-modal-btns button {
-        padding: 5px 12px;
-        border-radius: 5px;
-        border: 1px solid #333;
-        background: #1a1a1a;
-        color: #ccc;
-        font-size: 11px;
+      .sync-modal-btns {
+        margin-top: 14px;
+      }
+      .link-modal-btns button,
+      .sync-modal-btns button {
+        height: 28px;
+        padding: 0 12px;
+        border-radius: 8px;
+        background: var(--surface-2);
+        color: var(--text-2);
+        font-size: 12px;
+        font-weight: 500;
         cursor: pointer;
+        transition: background 0.12s;
       }
-      .link-modal-btns button:hover {
-        background: #333;
-        color: #fff;
+      .link-modal-btns button:hover,
+      .sync-modal-btns button:hover {
+        background: var(--surface-3);
+        color: var(--text);
       }
-      .link-modal-btns button.primary {
-        background: #2563eb;
-        border-color: #2563eb;
-        color: #fff;
+      .link-modal-btns button.primary,
+      .sync-modal-btns button.primary {
+        background: #fff;
+        color: #111;
       }
-      .link-modal-btns button.primary:hover {
-        background: #1d4ed8;
+      .link-modal-btns button.primary:hover,
+      .sync-modal-btns button.primary:hover {
+        background: #dcdce2;
+      }
+      .sync-modal-btns button.danger {
+        background: rgba(255, 107, 107, 0.14);
+        color: var(--danger);
+      }
+      .sync-modal-btns button.danger:hover {
+        background: rgba(255, 107, 107, 0.24);
       }
 
       /* ═══ STATUS BAR ═══ */
@@ -557,12 +670,28 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 4px 14px;
-        background: #0a0a0a;
-        border-top: 1px solid var(--border);
-        font-size: 9px;
-        color: #555;
+        height: 24px;
+        padding: 0 14px;
+        background: var(--bg);
+        font-size: 10px;
+        color: var(--text-3);
         flex-shrink: 0;
+        overflow: hidden;
+        transition:
+          height 0.26s var(--ease),
+          opacity 0.18s;
+      }
+      .status-right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      body.chrome-hidden .status {
+        height: 0;
+        opacity: 0;
+      }
+      body.detached .status {
+        display: none;
       }
 
       /* ═══ EMPTY STATE ═══ */
@@ -572,52 +701,44 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        color: #333;
-        gap: 10px;
-      }
-      .empty-icon {
-        font-size: 36px;
-        opacity: 0.3;
-      }
-      .empty p {
-        font-size: 11px;
+        color: var(--text-3);
+        gap: 12px;
       }
       .empty button {
-        background: #1a1a1a;
-        border: 1px solid #333;
-        color: #888;
-        padding: 6px 16px;
-        border-radius: 6px;
+        height: 30px;
+        padding: 0 14px;
+        background: var(--surface-2);
+        color: var(--text-2);
+        border-radius: 8px;
         cursor: pointer;
-        font-size: 11px;
-        font-weight: 600;
-        transition: all 0.15s;
+        font-size: 12px;
+        font-weight: 500;
       }
       .empty button:hover {
-        background: #333;
-        color: #fff;
+        background: var(--surface-3);
+        color: var(--text);
       }
 
       /* ═══ SYNC INDICATOR ═══ */
       .sync-dot {
-        width: 7px;
-        height: 7px;
+        width: 6px;
+        height: 6px;
         border-radius: 50%;
         flex-shrink: 0;
         transition: background 0.3s;
       }
       .sync-dot.off {
-        background: #333;
+        background: var(--surface-3);
       }
       .sync-dot.synced {
-        background: #4a4;
+        background: var(--ok);
       }
       .sync-dot.syncing {
-        background: #f90;
+        background: var(--warn);
         animation: pulse 1s infinite;
       }
       .sync-dot.error {
-        background: #f44;
+        background: var(--danger);
       }
       @keyframes pulse {
         0%,
@@ -629,12 +750,12 @@
         }
       }
 
-      /* ═══ SYNC SETUP MODAL ═══ */
+      /* ═══ SETTINGS MODALS ═══ */
       .sync-modal {
         display: none;
         position: fixed;
         inset: 0;
-        background: rgba(0, 0, 0, 0.7);
+        background: rgba(0, 0, 0, 0.55);
         z-index: 10001;
         align-items: center;
         justify-content: center;
@@ -644,133 +765,139 @@
         display: flex;
       }
       .sync-modal-box {
-        background: #1a1a1a;
-        border: 1px solid #333;
-        border-radius: 12px;
+        background: var(--float);
+        border-radius: 16px;
         padding: 18px;
         width: 100%;
         max-width: 320px;
-        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+        box-shadow: var(--shadow-lg);
       }
       .sync-modal-box h3 {
-        font-size: 13px;
-        color: #fff;
-        margin-bottom: 3px;
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 4px;
       }
       .sync-modal-box .subtitle {
-        font-size: 10px;
-        color: #666;
+        font-size: 11px;
+        line-height: 1.45;
+        color: var(--text-3);
         margin-bottom: 12px;
       }
       .sync-modal-box label {
-        font-size: 10px;
-        color: #888;
-        display: block;
-        margin-bottom: 3px;
-        margin-top: 10px;
-      }
-      .sync-modal-box input {
-        width: 100%;
-        background: #111;
-        border: 1px solid #333;
-        color: #fff;
-        padding: 6px 8px;
-        border-radius: 6px;
         font-size: 11px;
-        outline: none;
-        font-family: monospace;
-      }
-      .sync-modal-box input:focus {
-        border-color: #4a4;
-      }
-      .sync-modal-box input::placeholder {
-        color: #444;
-      }
-      .sync-modal-btns {
-        display: flex;
-        gap: 6px;
-        justify-content: flex-end;
+        color: var(--text-2);
+        display: block;
+        margin-bottom: 4px;
         margin-top: 12px;
       }
-      .sync-modal-btns button {
-        padding: 5px 12px;
-        border-radius: 6px;
-        border: 1px solid #333;
-        background: #1a1a1a;
-        color: #ccc;
+      .sync-modal-box input,
+      .sync-modal-box select {
+        width: 100%;
+        background: var(--bg);
+        padding: 8px 10px;
+        border-radius: 8px;
+        font-size: 12px;
+      }
+      .sync-modal-box input {
+        font-family: ui-monospace, monospace;
+      }
+      .sync-modal-box input::placeholder {
+        color: var(--text-3);
+      }
+      .field-row {
+        display: flex;
+        gap: 4px;
+      }
+      .field-row input {
+        flex: 1;
+        min-width: 0;
+      }
+      .field-row button {
+        padding: 0 10px;
+        background: var(--surface-2);
+        color: var(--text-2);
+        border-radius: 8px;
         font-size: 11px;
         cursor: pointer;
       }
-      .sync-modal-btns button:hover {
-        background: #333;
-        color: #fff;
+      .field-hint {
+        font-size: 10px;
+        color: var(--text-3);
+        margin-top: 4px;
       }
-      .sync-modal-btns button.primary {
-        background: #2a6a2a;
-        border-color: #3a8a3a;
-        color: #fff;
-      }
-      .sync-modal-btns button.primary:hover {
-        background: #3a8a3a;
-      }
-      .sync-modal-btns button.danger {
-        background: #4a1a1a;
-        border-color: #7a2a2a;
-        color: #f88;
-      }
-      .sync-modal-btns button.danger:hover {
-        background: #6a2a2a;
+      .field-hint a {
+        color: var(--accent);
       }
       .sync-status-msg {
-        font-size: 10px;
-        margin-top: 6px;
-        padding: 4px 6px;
-        border-radius: 5px;
+        font-size: 11px;
+        margin-top: 8px;
+        padding: 6px 8px;
+        border-radius: 8px;
       }
       .sync-status-msg.error {
-        background: #2a1111;
-        color: #f66;
+        background: rgba(255, 107, 107, 0.12);
+        color: var(--danger);
       }
       .sync-status-msg.success {
-        background: #112a11;
-        color: #6f6;
+        background: rgba(74, 222, 128, 0.1);
+        color: var(--ok);
       }
 
       /* ═══ CONTEXT MENU ═══ */
       .ctx {
         display: none;
         position: fixed;
-        background: #1e1e1e;
-        border: 1px solid #333;
-        border-radius: 8px;
-        padding: 4px;
-        min-width: 140px;
+        background: var(--float);
+        border-radius: 12px;
+        padding: 5px;
+        min-width: 176px;
         z-index: 9999;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+        box-shadow: var(--shadow-md);
       }
       .ctx.show {
         display: block;
       }
       .ctx-item {
-        display: block;
+        display: flex;
+        align-items: center;
+        gap: 9px;
         width: 100%;
+        height: 30px;
+        padding: 0 9px;
         text-align: left;
-        background: none;
-        border: none;
-        color: #ccc;
-        padding: 5px 10px;
-        font-size: 11px;
+        color: var(--text-2);
+        font-size: 12px;
         cursor: pointer;
-        border-radius: 5px;
+        border-radius: 8px;
       }
       .ctx-item:hover {
-        background: #333;
-        color: #fff;
+        background: var(--surface-2);
+        color: var(--text);
       }
-      .ctx-sep {
-        height: 1px;
-        background: #333;
-        margin: 3px 0;
+      .ctx-item.danger {
+        color: var(--danger);
+      }
+      .ctx-swatches {
+        display: flex;
+        gap: 5px;
+        padding: 6px 9px;
+        align-items: center;
+      }
+      .ctx-color {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        cursor: pointer;
+        background: var(--surface-3);
+        transition: transform 0.12s var(--ease);
+      }
+      .ctx-color:hover {
+        transform: scale(1.25);
+      }
+      body.detached #ctxDuplicate,
+      body.detached #ctxFloat,
+      body.detached #ctxDelete {
+        display: none;
       }
 
       /* ═══ TASK VIEW ═══ */
@@ -781,213 +908,371 @@
         overflow: hidden;
       }
       .task-list {
+        position: relative;
         flex: 1;
         overflow-y: auto;
-        padding: 8px 10px;
+        padding: 10px 10px 0;
+        transition: padding-top 0.26s var(--ease);
       }
-      .task-list::-webkit-scrollbar {
-        width: 4px;
+      body.chrome-hidden .task-list {
+        padding-top: 22px;
       }
-      .task-list::-webkit-scrollbar-thumb {
-        background: #333;
-        border-radius: 2px;
-      }
-      .task-row {
+      .task-row,
+      .task-group {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 8px 10px;
+        gap: 6px;
+        padding: 0 5px 0 7px;
         margin-bottom: 4px;
-        border: 1px solid #2a2a2a;
-        border-radius: 8px;
-        background: #111;
         cursor: grab;
-        transition:
-          background 0.15s,
-          border-color 0.15s,
-          transform 0.1s;
         user-select: none;
       }
+      .task-row {
+        height: 36px;
+        border-radius: 10px;
+        background: var(--surface);
+        box-shadow: var(--shadow-sm);
+        transition: background 0.12s;
+      }
       .task-row:hover {
-        border-color: #444;
+        background: var(--surface-2);
       }
-      .task-row.dragging {
-        opacity: 0.5;
-        transform: scale(0.98);
+      .task-group {
+        height: 30px;
+        margin-top: 12px;
+        border-radius: 8px;
       }
-      .task-row.drag-over {
-        border-color: #3498db;
-        background: #1a1a2a;
-      }
-      .task-row.has-snapshot {
-        cursor: pointer;
-      }
-      .task-row.has-snapshot:hover {
-        background: #1a1a1a;
+      .task-group:first-child {
+        margin-top: 0;
       }
       .task-num {
-        font-size: 10px;
-        font-weight: 800;
-        color: #444;
-        min-width: 16px;
-        text-align: center;
+        width: 16px;
+        height: 14px;
         flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        color: var(--text-3);
+      }
+      .task-num .i {
+        display: none;
+      }
+      .task-row:hover .task-num .num,
+      .task-group:hover .task-num .num {
+        display: none;
+      }
+      .task-row:hover .task-num .i,
+      .task-group:hover .task-num .i {
+        display: block;
+      }
+      .task-group .task-num .i {
+        visibility: hidden;
+      }
+      .task-group:hover .task-num .i {
+        visibility: visible;
       }
       .task-text {
         flex: 1;
-        background: none;
-        border: none;
+        min-width: 0;
         color: var(--text);
-        font-size: 12px;
-        font-family: inherit;
-        outline: none;
+        font-size: 12.5px;
         padding: 0;
+        cursor: text;
       }
       .task-text::placeholder {
-        color: #333;
+        color: var(--text-3);
       }
       .task-text.locked {
         pointer-events: none;
       }
+      .task-group .task-text {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--text-2);
+      }
+      .task-group .task-text::placeholder {
+        text-transform: none;
+        letter-spacing: 0;
+        font-weight: 500;
+      }
       .task-actions {
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: 1px;
         flex-shrink: 0;
+        opacity: 0;
+        transition: opacity 0.1s;
       }
-      .task-icon-btn {
-        background: none;
-        border: none;
-        color: #444;
+      .task-row:hover .task-actions,
+      .task-group:hover .task-actions {
+        opacity: 1;
+      }
+      .task-row.has-snapshot .task-actions {
+        opacity: 1;
+      }
+      .task-row.has-snapshot .task-actions .icon-btn:not(.snapshot-on) {
+        opacity: 0;
+      }
+      .task-row.has-snapshot:hover .task-actions .icon-btn {
+        opacity: 1;
+      }
+      .task-row.has-snapshot {
         cursor: pointer;
-        font-size: 12px;
-        width: 22px;
-        height: 22px;
-        border-radius: 4px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.15s;
       }
-      .task-icon-btn:hover {
-        background: #222;
-        color: #fff;
+      .icon-btn.snapshot-on {
+        color: var(--accent);
       }
-      .task-icon-btn.snapshot-active {
-        color: #3498db;
+      .icon-btn.snapshot-wait {
+        color: var(--warn);
       }
-      .task-icon-btn.snapshot-loading {
-        color: #f1c40f;
-      }
+
+      /* Same width as the task rows above it */
       .task-add-row {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 8px;
-        margin: 4px 10px 8px;
+        position: relative;
         flex-shrink: 0;
+        margin: 4px 10px 10px;
       }
       .task-add-btn {
-        background: none;
-        border: 1px dashed #2a4a6a;
-        color: #3498db;
-        font-size: 16px;
-        width: 32px;
-        height: 32px;
-        border-radius: 8px;
-        cursor: pointer;
+        width: 100%;
+        height: 36px;
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: all 0.15s;
+        border-radius: 10px;
+        background: var(--chrome);
+        color: var(--text-3);
+        cursor: pointer;
+        transition:
+          background 0.12s,
+          color 0.12s;
       }
       .task-add-btn:hover {
-        background: #1a2a3a;
-        border-color: #3498db;
-        color: #6af;
+        background: var(--surface-2);
+        color: var(--text);
       }
-      /* Tab being dragged */
-      .tab.tab-dragging {
-        opacity: 0.5;
+      .task-add-group {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        height: 24px;
+        padding: 0 8px;
+        border-radius: 7px;
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--text-3);
+        cursor: pointer;
+        transition:
+          background 0.12s,
+          color 0.12s;
       }
-      .tab.tab-drag-over {
-        border-left: 2px solid #3498db !important;
+      .task-add-group:hover {
+        background: var(--surface-3);
+        color: var(--text);
+      }
+
+      /* Dragging tasks and groups */
+      .task-row.drag-source,
+      .task-group.drag-source {
+        background: rgba(255, 255, 255, 0.03);
+        box-shadow: none;
+      }
+      .drag-source > * {
+        visibility: hidden !important;
+      }
+      .drag-carried {
+        display: none !important;
+      }
+      .drag-ghost {
+        position: fixed;
+        z-index: 1000;
+        margin: 0;
+        pointer-events: none;
+        background: var(--surface-3);
+        box-shadow: var(--shadow-lg);
+        border-radius: 10px;
+      }
+
+      /* ═══ DETACHED WINDOW: one tab, nothing else ═══ */
+      body.detached .header,
+      body.detached .tab-tools {
+        display: none;
+      }
+      body.detached .tabs {
+        padding: 7px 80px 7px 8px;
+        -webkit-app-region: drag;
+      }
+      body.detached .tab {
+        -webkit-app-region: no-drag;
+      }
+      body.detached .tab-x-zone {
+        display: none;
       }
     </style>
   </head>
   <body>
+
+    <!-- ICONS -->
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <defs>
+        <symbol id="i-x" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8" /></symbol>
+        <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10" /></symbol>
+        <symbol id="i-minus" viewBox="0 0 16 16"><path d="M3 8h10" /></symbol>
+        <symbol id="i-chevron-up" viewBox="0 0 16 16"><path d="M4 10l4-4 4 4" /></symbol>
+        <symbol id="i-chevron-down" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4" /></symbol>
+        <symbol id="i-sync" viewBox="0 0 16 16"><path d="M13.5 8a5.5 5.5 0 0 1-9.7 3.5M2.5 8a5.5 5.5 0 0 1 9.7-3.5M12.6 1.8v2.9H9.7M3.4 14.2v-2.9h2.9" /></symbol>
+        <symbol id="i-sliders" viewBox="0 0 16 16"><path d="M2.5 5h5.5M12 5h1.5M2.5 11H4M8 11h5.5" /><circle cx="10" cy="5" r="2" /><circle cx="6" cy="11" r="2" /></symbol>
+        <symbol id="i-tasks" viewBox="0 0 16 16"><path d="M2.5 4.2l1.3 1.3L6 3.2M2.5 10.2l1.3 1.3L6 9.2M8.5 4.5H14M8.5 10.5H14" /></symbol>
+        <symbol id="i-grip" viewBox="0 0 16 16"><path stroke-width="2" d="M6 4h.01M10 4h.01M6 8h.01M10 8h.01M6 12h.01M10 12h.01" /></symbol>
+        <symbol id="i-pencil" viewBox="0 0 16 16"><path d="M10.6 2.9l2.5 2.5L5.6 12.9 2.5 13.5l.6-3.1z" /></symbol>
+        <symbol id="i-camera" viewBox="0 0 16 16"><path d="M2 5.5A1.5 1.5 0 0 1 3.5 4h1.2l1-1.5h4.6l1 1.5h1.2A1.5 1.5 0 0 1 14 5.5v6a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 11.5z" /><circle cx="8" cy="8.5" r="2.2" /></symbol>
+        <symbol id="i-clock" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" /><path d="M8 5v3l2 1.2" /></symbol>
+        <symbol id="i-list" viewBox="0 0 16 16"><path d="M6 4h8M6 8h8M6 12h8" /><path stroke-width="2" d="M2.8 4h.01M2.8 8h.01M2.8 12h.01" /></symbol>
+        <symbol id="i-list-num" viewBox="0 0 16 16"><path d="M7 4h7M7 8h7M7 12h7M2.6 3l1-.5V6M2.3 9.3c.2-.5.6-.8 1.1-.8.6 0 1 .4 1 .9 0 1-2.1 1.3-2.1 2.6h2.2" /></symbol>
+        <symbol id="i-link" viewBox="0 0 16 16"><path d="M6.6 9.4a2.5 2.5 0 0 0 3.6 0l2-2a2.5 2.5 0 0 0-3.6-3.6l-.6.7M9.4 6.6a2.5 2.5 0 0 0-3.6 0l-2 2a2.5 2.5 0 0 0 3.6 3.6l.6-.7" /></symbol>
+        <symbol id="i-copy" viewBox="0 0 16 16"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" /><path d="M10.5 3.5A1 1 0 0 0 9.5 2.500h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1" /></symbol>
+        <symbol id="i-window" viewBox="0 0 16 16"><rect x="2.5" y="3.500" width="11" height="9" rx="1.5" /><path d="M2.5 6.500h11" /></symbol>
+        <symbol id="i-download" viewBox="0 0 16 16"><path d="M8 3v7M5 7.500l3 3 3-3M3 13h10" /></symbol>
+        <symbol id="i-trash" viewBox="0 0 16 16"><path d="M3 4.500h10M6.500 4.500V3h3v1.500M4.500 4.500l.6 8.500h5.800l.6-8.500" /></symbol>
+        <symbol id="i-pin" viewBox="0 0 16 16"><path d="M8 10.500V14M5.500 2.500h5l-.6 4 1.600 2v2h-7v-2l1.600-2z" /></symbol>
+        <symbol id="i-type" viewBox="0 0 16 16"><path d="M3.500 4V3h9v1M8 3v10M6.500 13h3" /></symbol>
+        <symbol id="i-mic" viewBox="0 0 16 16"><rect x="6" y="2.500" width="4" height="7" rx="2" /><path d="M3.500 7.500a4.500 4.500 0 0 0 9 0M8 12v2" /></symbol>
+        <symbol id="i-cloud" viewBox="0 0 16 16"><path d="M4.500 12.500h7a3 3 0 0 0 .5-6A4 4 0 0 0 4.200 7a2.800 2.800 0 0 0 .3 5.500z" /></symbol>
+      </defs>
+    </svg>
+
     <!-- COLLAPSED VIEW (shows only when collapsed) -->
     <div class="collapsed-view" id="collapsedView">
       <div class="mini-logo" id="expandBtn" title="Expand Notes">N</div>
     </div>
 
-    <!-- HEADER -->
-    <div class="header" id="hdr">
-      <div class="header-left">
-        <div class="header-logo">N</div>
-        <h1>NOTES</h1>
+    <!-- SHOWN WHEN THE TOOLBAR IS HIDDEN -->
+    <div class="grab-strip"></div>
+    <div class="corner" id="corner">
+      <div class="corner-pill">
+        <button class="icon-btn" id="unhideBtn" title="Show toolbar (⌘\)">
+          <svg class="i"><use id="unhideIcon" href="#i-chevron-down" /></svg>
+        </button>
+        <button class="icon-btn" id="closeWinBtn" title="Close window">
+          <svg class="i"><use href="#i-x" /></svg>
+        </button>
       </div>
-      <div class="header-right">
-        <div
-          class="sync-dot off"
-          id="syncDot"
-          title="Sync not configured"
-        ></div>
-        <button
-          class="header-btn"
-          id="syncNowBtn"
-          title="Sync now"
-          style="font-size: 14px"
-        >
-          ⟳
-        </button>
-        <button
-          class="header-btn"
-          id="settingsBtn"
-          title="Settings"
-          style="font-size: 22px; color: #555"
-        >
-          ⚙︎
-        </button>
-        <button
-          class="header-btn"
-          id="collapseBtn"
-          title="Collapse"
-          style="font-size: 16px; letter-spacing: -1px"
-        >
-          —
-        </button>
+    </div>
+
+    <!-- TOOLBARS -->
+    <div class="chrome" id="chrome">
+      <div class="chrome-inner">
+        <div class="header" id="hdr">
+          <div class="header-left">
+            <div class="header-logo">N</div>
+            <h1>Notes</h1>
+          </div>
+          <div class="header-right">
+            <div
+              class="sync-dot off"
+              id="syncDot"
+              title="Sync not configured"
+            ></div>
+            <button class="icon-btn" id="syncNowBtn" title="Sync now">
+              <svg class="i"><use href="#i-sync" /></svg>
+            </button>
+            <button class="icon-btn" id="settingsBtn" title="Settings">
+              <svg class="i"><use href="#i-sliders" /></svg>
+            </button>
+            <button class="icon-btn" id="hideBtn" title="Hide toolbar (⌘\)">
+              <svg class="i"><use href="#i-chevron-up" /></svg>
+            </button>
+            <button class="icon-btn" id="collapseBtn" title="Collapse">
+              <svg class="i"><use href="#i-minus" /></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- TAB BAR -->
+        <div class="tabs" id="tabBar">
+          <div class="tab-scroll" id="tabScroll"></div>
+          <div class="tab-tools">
+            <button class="icon-btn" id="addBtn" title="New note (⌘T)">
+              <svg class="i"><use href="#i-plus" /></svg>
+            </button>
+            <button class="icon-btn" id="addTaskBtn" title="New task list">
+              <svg class="i"><use href="#i-tasks" /></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- FORMAT BAR -->
+        <div class="format-bar" id="formatBar">
+          <button class="fmt-btn" id="fmtBold" title="Bold (⌘B)"><b>B</b></button>
+          <button class="fmt-btn" id="fmtItalic" title="Italic (⌘I)"><i>I</i></button>
+          <button class="fmt-btn" id="fmtUnderline" title="Underline (⌘U)"><u>U</u></button>
+          <button class="fmt-btn" id="fmtStrike" title="Strikethrough"><s>S</s></button>
+          <div class="fmt-gap"></div>
+          <button class="fmt-btn" id="fmtSizeDown" title="Decrease font (⌘−)">A−</button>
+          <button class="fmt-btn" id="fmtSizeUp" title="Increase font (⌘+)">A+</button>
+          <select class="fmt-select" id="fmtSize" title="Font size">
+            <option value="">Size</option>
+            <option value="1">10px</option>
+            <option value="2">12px</option>
+            <option value="3">14px</option>
+            <option value="4">16px</option>
+            <option value="5">20px</option>
+            <option value="6">24px</option>
+            <option value="7">32px</option>
+          </select>
+          <div class="fmt-gap"></div>
+          <div class="fmt-color text-color" title="Text color">
+            <input type="color" id="fmtColor" value="#ececf1" />
+          </div>
+          <div class="fmt-color highlight-color" title="Highlight">
+            <input type="color" id="fmtHighlight" value="#303037" />
+          </div>
+          <div class="fmt-gap"></div>
+          <button class="fmt-btn" id="fmtUL" title="Bullet list">
+            <svg class="i"><use href="#i-list" /></svg>
+          </button>
+          <button class="fmt-btn" id="fmtOL" title="Numbered list">
+            <svg class="i"><use href="#i-list-num" /></svg>
+          </button>
+          <button class="fmt-btn" id="fmtLink" title="Insert link (⌘K)">
+            <svg class="i"><use href="#i-link" /></svg>
+          </button>
+        </div>
       </div>
     </div>
 
     <!-- SETTINGS DROPDOWN -->
     <div class="settings-dropdown" id="settingsDropdown">
       <button class="settings-item" id="toggleAOT">
-        <span>Always on top</span>
+        <svg class="i"><use href="#i-pin" /></svg>
+        <span class="grow">Always on top</span>
         <div class="toggle-pill on" id="aotPill"></div>
       </button>
       <button class="settings-item" id="fmtToggleBtn">
-        <span>See format bar</span>
+        <svg class="i"><use href="#i-type" /></svg>
+        <span class="grow">Format bar</span>
         <div class="toggle-pill" id="fmtPill"></div>
       </button>
       <button class="settings-item" id="openTpSettings">
-        <span>🎤 Teleprompter</span>
-        <span style="font-size: 9px; color: #666" id="tpConfigLabel"
-          >No key</span
-        >
+        <svg class="i"><use href="#i-mic" /></svg>
+        <span class="grow">Teleprompter</span>
+        <span class="hint" id="tpConfigLabel">No key</span>
       </button>
       <button class="settings-item" id="openSyncSettings">
-        <span>☁️ Sync settings</span>
-        <span style="font-size: 9px; color: #666" id="syncConfigLabel"
-          >Not set up</span
-        >
+        <svg class="i"><use href="#i-cloud" /></svg>
+        <span class="grow">Sync</span>
+        <span class="hint" id="syncConfigLabel">Not set up</span>
       </button>
     </div>
 
     <!-- SYNC SETUP MODAL -->
     <div class="sync-modal" id="syncModal">
       <div class="sync-modal-box">
-        <h3>☁️ GitHub Sync</h3>
+        <h3>GitHub Sync</h3>
         <p class="subtitle">
           Sync notes across devices via a private GitHub Gist
         </p>
@@ -998,20 +1283,16 @@
           placeholder="ghp_xxxxxxxxxxxx"
           autocomplete="off"
         />
-        <p style="font-size: 9px; color: #555; margin-top: 3px">
+        <p class="field-hint">
           Create at
           <a
             href="https://github.com/settings/tokens/new?scopes=gist&description=Notes+App+Sync"
             target="_blank"
-            style="color: #6af"
             >github.com/settings/tokens</a
           >
           with <b>gist</b> scope
         </p>
-        <label
-          >Gist ID
-          <span style="color: #555">(leave blank to create new)</span></label
-        >
+        <label>Gist ID (leave blank to create new)</label>
         <input
           id="syncGistInput"
           placeholder="auto-created if empty"
@@ -1035,53 +1316,27 @@
     <!-- TELEPROMPTER SETTINGS MODAL -->
     <div class="sync-modal" id="tpModal">
       <div class="sync-modal-box">
-        <h3>🎤 Teleprompter</h3>
+        <h3>Teleprompter</h3>
         <p class="subtitle">
           Floating notes can follow your voice. Your speech is sent to OpenAI
           only while a floating note is listening.
         </p>
         <label>OpenAI API key</label>
-        <div style="display: flex; gap: 4px">
+        <div class="field-row">
           <input
             id="tpKeyInput"
             type="password"
             placeholder="sk-..."
             autocomplete="off"
             spellcheck="false"
-            style="flex: 1; min-width: 0"
           />
-          <button
-            id="tpKeyShow"
-            type="button"
-            style="
-              background: #222;
-              color: #aaa;
-              border: 1px solid #333;
-              border-radius: 5px;
-              font-size: 10px;
-              padding: 0 8px;
-              cursor: pointer;
-            "
-          >
-            Show
-          </button>
+          <button id="tpKeyShow" type="button">Show</button>
         </div>
-        <p style="font-size: 9px; color: #555; margin-top: 3px">
+        <p class="field-hint">
           Stored only on this Mac. It is never synced with your notes.
         </p>
         <label>Language you speak in</label>
-        <select
-          id="tpLangInput"
-          style="
-            width: 100%;
-            background: #1a1a1a;
-            color: #ddd;
-            border: 1px solid #333;
-            border-radius: 5px;
-            padding: 5px 6px;
-            font-size: 11px;
-          "
-        >
+        <select id="tpLangInput">
           <option value="en">English</option>
           <option value="pt">Portuguese</option>
           <option value="es">Spanish</option>
@@ -1100,33 +1355,6 @@
       </div>
     </div>
 
-    <!-- TAB BAR -->
-    <div class="tabs" id="tabBar">
-      <button class="tab-add" id="addBtn" title="New tab (⌘T)">+</button>
-      <button
-        class="tab-add"
-        id="addTaskBtn"
-        title="New task list"
-        style="padding: 2px 6px"
-      >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 14 14"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <polyline points="1.5,3.5 3,5 5.5,2.5" />
-          <line x1="7.5" y1="3.5" x2="12.5" y2="3.5" />
-          <polyline points="1.5,9 3,10.5 5.5,8" />
-          <line x1="7.5" y1="9" x2="12.5" y2="9" />
-        </svg>
-      </button>
-    </div>
-
     <!-- TITLE BAR (hidden - rename via tab double-click) -->
     <div class="title-bar" id="titleBar" style="display: none">
       <input
@@ -1136,64 +1364,6 @@
         spellcheck="false"
       />
       <div class="save-dot" id="saveDot"></div>
-    </div>
-
-    <!-- FORMAT BAR -->
-    <div class="format-bar" id="formatBar">
-      <button class="fmt-btn" id="fmtBold" title="Bold (⌘B)"><b>B</b></button>
-      <button class="fmt-btn" id="fmtItalic" title="Italic (⌘I)">
-        <i>I</i>
-      </button>
-      <button class="fmt-btn" id="fmtUnderline" title="Underline (⌘U)">
-        <u>U</u>
-      </button>
-      <button
-        class="fmt-btn"
-        id="fmtStrike"
-        title="Strikethrough"
-        style="text-decoration: line-through"
-      >
-        S
-      </button>
-      <div class="fmt-sep"></div>
-      <button
-        class="fmt-btn"
-        id="fmtSizeDown"
-        title="Decrease font (⌘−)"
-        style="font-size: 10px"
-      >
-        A-
-      </button>
-      <button
-        class="fmt-btn"
-        id="fmtSizeUp"
-        title="Increase font (⌘+)"
-        style="font-size: 14px"
-      >
-        A+
-      </button>
-      <select class="fmt-select" id="fmtSize" title="Font size">
-        <option value="">Size</option>
-        <option value="1">10px</option>
-        <option value="2">12px</option>
-        <option value="3">14px</option>
-        <option value="4">16px</option>
-        <option value="5">20px</option>
-        <option value="6">24px</option>
-        <option value="7">32px</option>
-      </select>
-      <div class="fmt-sep"></div>
-      <div class="fmt-color text-color" title="Text color">
-        <input type="color" id="fmtColor" value="#e0e0e0" />
-      </div>
-      <div class="fmt-color highlight-color" title="Highlight">
-        <input type="color" id="fmtHighlight" value="#111111" />
-      </div>
-      <div class="fmt-sep"></div>
-      <button class="fmt-btn" id="fmtUL" title="Bullet list">•</button>
-      <button class="fmt-btn" id="fmtOL" title="Numbered list">1.</button>
-      <div class="fmt-sep"></div>
-      <button class="fmt-btn" id="fmtLink" title="Insert Link (⌘K)">🔗</button>
     </div>
 
     <!-- EDITOR (contenteditable) -->
@@ -1208,7 +1378,12 @@
     <div class="task-view" id="taskView" style="display: none">
       <div class="task-list" id="taskList"></div>
       <div class="task-add-row">
-        <button class="task-add-btn" id="taskAddBtn" title="Add task">+</button>
+        <button class="task-add-btn" id="taskAddBtn" title="Add task">
+          <svg class="i"><use href="#i-plus" /></svg>
+        </button>
+        <button class="task-add-group" id="taskAddGroupBtn" title="Add group">
+          Group
+        </button>
       </div>
     </div>
 
@@ -1225,144 +1400,68 @@
 
     <!-- EMPTY STATE -->
     <div class="empty" id="emptyState" style="display: none">
-      <div class="empty-icon">📝</div>
-      <p>No tabs — create one</p>
-      <button onclick="addTab()">+ New tab</button>
+      <p>No notes yet</p>
+      <button onclick="addTab()">New note</button>
     </div>
 
     <!-- STATUS BAR -->
     <div class="status">
       <span id="charInfo">0 chars</span>
-      <span style="display: flex; align-items: center; gap: 6px"
-        ><span id="syncStatus" style="color: #444">—</span
-        ><span id="savedAt">—</span></span
+      <span class="status-right"
+        ><span id="syncStatus">—</span><span id="savedAt">—</span></span
       >
     </div>
 
     <!-- CONTEXT MENU -->
     <div class="ctx" id="ctx">
-      <button class="ctx-item" id="ctxRename">✏️ Rename</button>
-      <button class="ctx-item" id="ctxDuplicate">📋 Duplicate</button>
-      <button class="ctx-item" id="ctxFloat">🪟 Open floating window</button>
-      <div class="ctx-sep"></div>
-      <div
-        style="display: flex; gap: 4px; padding: 4px 10px; align-items: center"
-      >
-        <span style="font-size: 10px; color: #888; margin-right: 2px">🎨</span>
-        <span
-          class="ctx-color"
-          data-color=""
-          style="
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            border: 1px solid #555;
-            cursor: pointer;
-            background: #333;
-          "
-          title="None"
-        ></span>
-        <span
-          class="ctx-color"
-          data-color="#e74c3c"
-          style="
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            cursor: pointer;
-            background: #e74c3c;
-          "
-          title="Red"
-        ></span>
-        <span
-          class="ctx-color"
-          data-color="#e67e22"
-          style="
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            cursor: pointer;
-            background: #e67e22;
-          "
-          title="Orange"
-        ></span>
-        <span
-          class="ctx-color"
-          data-color="#f1c40f"
-          style="
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            cursor: pointer;
-            background: #f1c40f;
-          "
-          title="Yellow"
-        ></span>
-        <span
-          class="ctx-color"
-          data-color="#2ecc71"
-          style="
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            cursor: pointer;
-            background: #2ecc71;
-          "
-          title="Green"
-        ></span>
-        <span
-          class="ctx-color"
-          data-color="#3498db"
-          style="
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            cursor: pointer;
-            background: #3498db;
-          "
-          title="Blue"
-        ></span>
-        <span
-          class="ctx-color"
-          data-color="#9b59b6"
-          style="
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            cursor: pointer;
-            background: #9b59b6;
-          "
-          title="Purple"
-        ></span>
-        <span
-          class="ctx-color"
-          data-color="#e91e63"
-          style="
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            cursor: pointer;
-            background: #e91e63;
-          "
-          title="Pink"
-        ></span>
+      <button class="ctx-item" id="ctxRename">
+        <svg class="i"><use href="#i-pencil" /></svg>Rename
+      </button>
+      <button class="ctx-item" id="ctxDuplicate">
+        <svg class="i"><use href="#i-copy" /></svg>Duplicate
+      </button>
+      <button class="ctx-item" id="ctxFloat">
+        <svg class="i"><use href="#i-window" /></svg>Open floating window
+      </button>
+      <div class="ctx-swatches">
+        <span class="ctx-color" data-color="" title="None"></span>
+        <span class="ctx-color" data-color="#e74c3c" style="background: #e74c3c" title="Red"></span>
+        <span class="ctx-color" data-color="#e67e22" style="background: #e67e22" title="Orange"></span>
+        <span class="ctx-color" data-color="#f1c40f" style="background: #f1c40f" title="Yellow"></span>
+        <span class="ctx-color" data-color="#2ecc71" style="background: #2ecc71" title="Green"></span>
+        <span class="ctx-color" data-color="#3498db" style="background: #3498db" title="Blue"></span>
+        <span class="ctx-color" data-color="#9b59b6" style="background: #9b59b6" title="Purple"></span>
+        <span class="ctx-color" data-color="#e91e63" style="background: #e91e63" title="Pink"></span>
       </div>
-      <div class="ctx-sep"></div>
-      <button class="ctx-item" id="ctxExport">⬇ Export .txt</button>
-      <div class="ctx-sep"></div>
-      <button class="ctx-item" style="color: #f66" id="ctxDelete">
-        🗑 Delete
+      <button class="ctx-item" id="ctxExport">
+        <svg class="i"><use href="#i-download" /></svg>Export .txt
+      </button>
+      <button class="ctx-item danger" id="ctxDelete">
+        <svg class="i"><use href="#i-trash" /></svg>Delete
       </button>
     </div>
 
     <script>
       const KEY = "notes-app-data";
       const SYNC_KEY = "notes-sync-config";
+      const UI_KEY = "notes-ui";
       const $ = (id) => document.getElementById(id);
+      const api = window.notesAPI || null;
+
+      // A window opened by dragging a tab out shows that one tab. The main
+      // window stays the only owner of the notes: it saves and syncs them,
+      // and a detached window just tells it what changed.
+      const DETACHED = new URLSearchParams(location.search).get("tab");
 
       let state = { tabs: [], active: null, deletedIds: [] };
+      let ui = { chromeHidden: false, formatBar: true };
       let saveTimer = null;
       let ctxId = null;
+      // Which tab the editor is showing, and that text as last read or written
+      let editorTabId = null;
+      let editorHtml = null;
+      let lastKeyAt = 0;
+      let deferredRender = null;
 
       // ── PERSISTENCE ──
       function load() {
@@ -1376,13 +1475,34 @@
         }
       }
 
+      function loadUi() {
+        try {
+          ui = Object.assign(ui, JSON.parse(localStorage.getItem(UI_KEY)));
+        } catch (e) {
+          /* keep the defaults */
+        }
+      }
+      function saveUi() {
+        localStorage.setItem(UI_KEY, JSON.stringify(ui));
+      }
+
+      function writeLocal() {
+        localStorage.setItem(KEY, JSON.stringify(state));
+      }
+
       function save(andSync) {
+        clearTimeout(saveTimer);
+        if (DETACHED) {
+          saveTimer = setTimeout(sendEditToMain, 120);
+          return;
+        }
         const dot = $("saveDot");
         dot.classList.add("dirty");
-        clearTimeout(saveTimer);
         saveTimer = setTimeout(() => {
-          localStorage.setItem(KEY, JSON.stringify(state));
+          saveTimer = null;
+          writeLocal();
           pushFloating(state.active);
+          pushDetached();
           dot.classList.remove("dirty");
           $("savedAt").textContent =
             "saved " +
@@ -1393,6 +1513,13 @@
           if (andSync !== false) debouncedSync();
         }, 250);
       }
+
+      // Never lose the last keystrokes when a window closes
+      window.addEventListener("beforeunload", () => {
+        if (!saveTimer) return;
+        if (DETACHED) sendEditToMain();
+        else writeLocal();
+      });
 
       // ── TAB CRUD ──
       function uid() {
@@ -1407,10 +1534,7 @@
           title: title || "Untitled",
           content: content || "",
           type: type || "note", // "note" or "task"
-          tasks:
-            type === "task"
-              ? [{ id: uid(), text: "", snapshot: null }]
-              : undefined,
+          tasks: type === "task" ? [newTask()] : undefined,
           ts: Date.now(),
         };
         state.tabs.push(t);
@@ -1441,6 +1565,7 @@
             ? state.tabs[Math.min(idx, state.tabs.length - 1)].id
             : null;
         }
+        if (api && api.closeDetached) api.closeDetached(id);
         save();
         render();
       }
@@ -1458,8 +1583,10 @@
         const oldTitle = t.title;
         const oldContent = t.content;
         t.title = $("titleInput").value || "Untitled";
-        if (t.type !== "task") {
+        // Only ever read the editor into the note it is actually showing
+        if (t.type !== "task" && t.id === editorTabId) {
           t.content = $("editor").innerHTML;
+          editorHtml = t.content;
         }
         // Only bump timestamp when content actually changed (not on periodic sync)
         if (!skipTs && (t.title !== oldTitle || t.content !== oldContent)) {
@@ -1488,58 +1615,133 @@
         }
       }
 
-      // ── TASK RENDERING ──
-      // SVG templates
-      const svgCamOff = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
-      const svgCamOn = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4" fill="#111"/></svg>`;
-      const svgLoad = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
-      const svgPencil = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>`;
-      const svgX = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+      // ── TASKS ──
+      // A task list is one flat array. A group is an entry with kind "group":
+      // its title sits between tasks, and every task below it belongs to it
+      // until the next group. Older clients simply see it as a task.
+      const icon = (name) => `<svg class="i"><use href="#i-${name}" /></svg>`;
+      const isGroup = (item) => item && item.kind === "group";
+      const newTask = () => ({ id: uid(), text: "", snapshot: null });
+
+      function tasksChanged(tab) {
+        tab.ts = Date.now();
+        save();
+      }
 
       function renderTasks(tab) {
         const list = $("taskList");
+        // A rebuild must never cost the user their place in the text
+        const focused = document.activeElement;
+        const typing =
+          focused && list.contains(focused) && focused.closest("[data-id]")
+            ? {
+                id: focused.closest("[data-id]").dataset.id,
+                start: focused.selectionStart,
+                end: focused.selectionEnd,
+              }
+            : null;
+        const scrollTop = list.scrollTop;
+
         list.innerHTML = "";
         if (!tab.tasks) tab.tasks = [];
+        let n = 0;
+        tab.tasks.forEach((item) => {
+          if (!item.id) item.id = uid();
+          if (isGroup(item)) {
+            n = 0;
+            list.appendChild(groupRow(tab, item));
+          } else {
+            n += 1;
+            list.appendChild(taskRow(tab, item, n));
+          }
+        });
 
-        tab.tasks.forEach((task, i) => {
-          const row = document.createElement("div");
-          row.className = "task-row" + (task.snapshot ? " has-snapshot" : "");
-          row.draggable = true;
-          row.dataset.idx = i;
+        list.scrollTop = scrollTop;
+        if (typing) {
+          const input = rowInput(typing.id);
+          if (input) {
+            input.focus({ preventScroll: true });
+            input.setSelectionRange(typing.start, typing.end);
+          }
+        }
+      }
 
-          const num = document.createElement("span");
-          num.className = "task-num";
-          num.textContent = i + 1;
-          row.appendChild(num);
+      function rowInput(id) {
+        const row = [...$("taskList").children].find(
+          (el) => el.dataset.id === id,
+        );
+        return row ? row.querySelector(".task-text") : null;
+      }
 
-          const textEl = document.createElement("input");
-          textEl.type = "text";
-          textEl.className = "task-text" + (task.snapshot ? " locked" : "");
-          textEl.value = task.text;
-          textEl.placeholder = "New task…";
-          textEl.readOnly = !!task.snapshot;
-          textEl.addEventListener("input", () => {
-            task.text = textEl.value;
-            save();
-          });
-          textEl.addEventListener("keydown", (e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              if (!textEl.readOnly) addTaskRow(tab, i + 1);
-            }
-          });
-          row.appendChild(textEl);
+      function focusRow(id) {
+        const input = rowInput(id);
+        if (!input) return;
+        input.focus();
+        input.closest("[data-id]").scrollIntoView({ block: "nearest" });
+      }
 
-          const actions = document.createElement("span");
-          actions.className = "task-actions";
+      function taskInput(tab, item, placeholder) {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.className = "task-text";
+        input.value = item.text;
+        input.placeholder = placeholder;
+        input.addEventListener("input", () => {
+          item.text = input.value;
+          tasksChanged(tab);
+        });
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            if (!input.readOnly)
+              addTaskRow(tab, tab.tasks.indexOf(item) + 1);
+          }
+        });
+        return input;
+      }
 
-          // Pencil – toggle edit mode
-          const pencilBtn = document.createElement("button");
-          pencilBtn.className = "task-icon-btn";
-          pencilBtn.title = "Edit task name";
-          pencilBtn.innerHTML = svgPencil;
-          pencilBtn.addEventListener("click", (e) => {
-            e.stopPropagation();
+      function rowButton(title, name, onClick) {
+        const btn = document.createElement("button");
+        btn.className = "icon-btn";
+        btn.title = title;
+        btn.innerHTML = icon(name);
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          onClick();
+        });
+        return btn;
+      }
+
+      function rowHandle(n) {
+        const el = document.createElement("span");
+        el.className = "task-num";
+        el.innerHTML = `<span class="num">${n}</span>${icon("grip")}`;
+        return el;
+      }
+
+      function removeItem(tab, item) {
+        tab.tasks.splice(tab.tasks.indexOf(item), 1);
+        tasksChanged(tab);
+        renderTasks(tab);
+      }
+
+      function taskRow(tab, task, n) {
+        const row = document.createElement("div");
+        row.className = "task-row" + (task.snapshot ? " has-snapshot" : "");
+        row.dataset.id = task.id;
+        row.appendChild(rowHandle(n));
+
+        const textEl = taskInput(tab, task, "New task…");
+        textEl.classList.toggle("locked", !!task.snapshot);
+        textEl.readOnly = !!task.snapshot;
+        row.appendChild(textEl);
+
+        const actions = document.createElement("span");
+        actions.className = "task-actions";
+
+        // Pencil – toggle edit mode
+        actions.appendChild(
+          rowButton("Edit task name", "pencil", () => {
             textEl.readOnly = false;
             textEl.classList.remove("locked");
             textEl.focus();
@@ -1553,266 +1755,696 @@
               textEl.removeEventListener("blur", onBlur);
             };
             textEl.addEventListener("blur", onBlur);
-          });
-          actions.appendChild(pencilBtn);
+          }),
+        );
 
-          // Camera – capture snapshot
-          const camBtn = document.createElement("button");
-          camBtn.className = "task-icon-btn";
-          camBtn.title = task.snapshot
+        // Camera – capture snapshot
+        const camBtn = rowButton(
+          task.snapshot
             ? "Snapshot saved ✓ – click to update"
-            : "Capture app snapshot";
-          camBtn.innerHTML = task.snapshot ? svgCamOn : svgCamOff;
-          if (task.snapshot) camBtn.style.color = "#3498db";
-          camBtn.addEventListener("click", async (e) => {
-            e.stopPropagation();
-            camBtn.innerHTML = svgLoad;
-            camBtn.style.color = "#f1c40f";
+            : "Capture app snapshot",
+          "camera",
+          async () => {
+            camBtn.innerHTML = icon("clock");
+            camBtn.classList.add("snapshot-wait");
             try {
-              const snap = await window.notesAPI.captureSnapshot();
+              const snap = await api.captureSnapshot();
               task.snapshot = snap;
-              camBtn.innerHTML = svgCamOn;
-              camBtn.style.color = "#3498db";
+              camBtn.innerHTML = icon("camera");
+              camBtn.classList.remove("snapshot-wait");
+              camBtn.classList.add("snapshot-on");
               camBtn.title = "Snapshot saved ✓ – click to update";
               // Lock the text
               textEl.readOnly = true;
               textEl.classList.add("locked");
               row.classList.add("has-snapshot");
-              save();
+              tasksChanged(tab);
             } catch (err) {
-              camBtn.innerHTML = svgCamOff;
-              camBtn.style.color = "";
+              camBtn.innerHTML = icon("camera");
+              camBtn.classList.remove("snapshot-wait");
               console.error("Snapshot failed:", err);
             }
-          });
-          actions.appendChild(camBtn);
+          },
+        );
+        camBtn.classList.toggle("snapshot-on", !!task.snapshot);
+        actions.appendChild(camBtn);
 
-          // Delete
-          const delBtn = document.createElement("button");
-          delBtn.className = "task-icon-btn";
-          delBtn.title = "Remove task";
-          delBtn.innerHTML = svgX;
-          delBtn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            tab.tasks.splice(i, 1);
-            save();
-            renderTasks(tab);
-          });
-          actions.appendChild(delBtn);
+        // Delete
+        actions.appendChild(
+          rowButton("Remove task", "x", () => removeItem(tab, task)),
+        );
+        row.appendChild(actions);
 
-          row.appendChild(actions);
-
-          // Click row → restore snapshot
-          row.addEventListener("click", async (e) => {
-            // Don't restore if clicking action buttons or text input
-            if (
-              e.target.closest(".task-actions") ||
-              e.target.classList.contains("task-text")
-            )
-              return;
-            if (!task.snapshot) return;
-            // Visual feedback
-            row.style.opacity = "0.6";
-            try {
-              await window.notesAPI.restoreSnapshot(task.snapshot);
-            } catch (err) {
-              console.error("Restore failed:", err);
-            }
-            row.style.opacity = "";
-          });
-
-          // Drag-to-reorder tasks
-          row.addEventListener("dragstart", (e) => {
-            e.dataTransfer.effectAllowed = "move";
-            e.dataTransfer.setData("text/plain", String(i));
-            row.classList.add("tab-dragging");
-          });
-          row.addEventListener("dragend", () => {
-            row.classList.remove("tab-dragging");
-            list
-              .querySelectorAll(".task-row")
-              .forEach((r) => r.classList.remove("tab-drag-over"));
-          });
-          row.addEventListener("dragover", (e) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = "move";
-            row.classList.add("tab-drag-over");
-          });
-          row.addEventListener("dragleave", () => {
-            row.classList.remove("tab-drag-over");
-          });
-          row.addEventListener("drop", (e) => {
-            e.preventDefault();
-            row.classList.remove("tab-drag-over");
-            const fromIdx = parseInt(e.dataTransfer.getData("text/plain"), 10);
-            const toIdx = i;
-            if (fromIdx === toIdx) return;
-            const [moved] = tab.tasks.splice(fromIdx, 1);
-            tab.tasks.splice(toIdx, 0, moved);
-            save();
-            renderTasks(tab);
-          });
-
-          list.appendChild(row);
+        // Click row → restore snapshot
+        row.addEventListener("click", async (e) => {
+          // Don't restore if clicking action buttons or text input
+          if (
+            e.target.closest(".task-actions") ||
+            e.target.classList.contains("task-text")
+          )
+            return;
+          if (!task.snapshot) return;
+          // Visual feedback
+          row.style.opacity = "0.6";
+          try {
+            await api.restoreSnapshot(task.snapshot);
+          } catch (err) {
+            console.error("Restore failed:", err);
+          }
+          row.style.opacity = "";
         });
+
+        row.addEventListener("mousedown", (e) => startItemDrag(e, tab, row));
+        return row;
+      }
+
+      function groupRow(tab, group) {
+        const row = document.createElement("div");
+        row.className = "task-group";
+        row.dataset.id = group.id;
+        row.appendChild(rowHandle(""));
+        row.appendChild(taskInput(tab, group, "Group name"));
+
+        const actions = document.createElement("span");
+        actions.className = "task-actions";
+        actions.appendChild(
+          rowButton("Add task to this group", "plus", () =>
+            addTaskRow(tab, tab.tasks.indexOf(group) + 1),
+          ),
+        );
+        actions.appendChild(
+          rowButton("Remove group, keep its tasks", "x", () =>
+            removeItem(tab, group),
+          ),
+        );
+        row.appendChild(actions);
+
+        row.addEventListener("mousedown", (e) => startItemDrag(e, tab, row));
+        return row;
       }
 
       function addTaskRow(tab, atIndex) {
         if (!tab.tasks) tab.tasks = [];
-        const newTask = { id: uid(), text: "", snapshot: null };
-        if (atIndex !== undefined) {
-          tab.tasks.splice(atIndex, 0, newTask);
-        } else {
-          tab.tasks.push(newTask);
-        }
-        save();
+        const item = newTask();
+        if (atIndex !== undefined) tab.tasks.splice(atIndex, 0, item);
+        else tab.tasks.push(item);
+        tasksChanged(tab);
         renderTasks(tab);
-        // Focus the new input
-        setTimeout(() => {
-          const inputs = $("taskList").querySelectorAll(".task-text");
-          const idx = atIndex !== undefined ? atIndex : inputs.length - 1;
-          if (inputs[idx]) inputs[idx].focus();
-        }, 30);
+        focusRow(item.id);
       }
 
-      // ── TAB DRAG REORDER ──
-      let tabDragId = null;
-      function setupTabDrag(el, tabId) {
-        el.draggable = true;
-        el.addEventListener("dragstart", (e) => {
-          tabDragId = tabId;
-          e.dataTransfer.effectAllowed = "move";
-          e.dataTransfer.setData("text/plain", tabId);
-          el.classList.add("tab-dragging");
-        });
-        el.addEventListener("dragend", () => {
-          el.classList.remove("tab-dragging");
-          document
-            .querySelectorAll(".tab")
-            .forEach((t) => t.classList.remove("tab-drag-over"));
-          tabDragId = null;
-        });
-        el.addEventListener("dragover", (e) => {
-          e.preventDefault();
-          e.dataTransfer.dropEffect = "move";
-          if (tabDragId && tabDragId !== tabId) {
-            el.classList.add("tab-drag-over");
+      function addGroupRow(tab) {
+        if (!tab.tasks) tab.tasks = [];
+        const group = {
+          id: uid(),
+          text: "",
+          kind: "group",
+          snapshot: null,
+        };
+        tab.tasks.push(group);
+        tasksChanged(tab);
+        renderTasks(tab);
+        focusRow(group.id);
+      }
+
+      // ── DRAGGING TASKS AND GROUPS ──
+      // Press anywhere on a row and move to drag it. A press without movement
+      // is a normal click, so clicking the text still starts editing it.
+      let itemDrag = null;
+
+      function startItemDrag(e, tab, row) {
+        if (e.button !== 0 || e.target.closest(".task-actions")) return;
+        const input = e.target.closest(".task-text");
+        // Already editing this text: the mouse selects it as usual
+        if (input && document.activeElement === input) return;
+        e.preventDefault();
+        const editing = document.activeElement;
+        if (editing && editing.classList.contains("task-text")) editing.blur();
+
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const onMove = (ev) => {
+          if (!itemDrag) {
+            const moved =
+              Math.abs(ev.clientX - startX) + Math.abs(ev.clientY - startY);
+            if (moved < 5) return;
+            beginItemDrag(tab, row, startY);
           }
+          itemDrag.y = ev.clientY;
+          itemDrag.ghost.style.top = itemDrag.y - itemDrag.grabY + "px";
+          placeDraggedItem();
+        };
+        const onUp = (ev) => {
+          window.removeEventListener("mousemove", onMove);
+          window.removeEventListener("mouseup", onUp);
+          if (itemDrag) {
+            endItemDrag();
+            swallowNextClick();
+          } else if (input) {
+            placeCaret(input, ev.clientX);
+          }
+        };
+        window.addEventListener("mousemove", onMove);
+        window.addEventListener("mouseup", onUp);
+      }
+
+      function beginItemDrag(tab, row, startY) {
+        const list = $("taskList");
+        const rect = row.getBoundingClientRect();
+        const isHead = row.classList.contains("task-group");
+        // A group travels with its tasks
+        const carried = [];
+        if (isHead) {
+          for (
+            let el = row.nextElementSibling;
+            el && !el.classList.contains("task-group");
+            el = el.nextElementSibling
+          ) {
+            carried.push(el);
+          }
+          carried.forEach((el) => el.classList.add("drag-carried"));
+        }
+        const ghost = row.cloneNode(true);
+        ghost.classList.add("drag-ghost");
+        ghost.style.left = rect.left + "px";
+        ghost.style.top = rect.top + "px";
+        ghost.style.width = rect.width + "px";
+        document.body.appendChild(ghost);
+        row.classList.add("drag-source");
+        document.body.classList.add("dragging");
+        itemDrag = {
+          tab,
+          row,
+          list,
+          ghost,
+          carried,
+          isHead,
+          y: startY,
+          grabY: startY - rect.top,
+          height: rect.height,
+          raf: requestAnimationFrame(autoScrollDrag),
+        };
+      }
+
+      const nextShown = (el) => {
+        let next = el.nextElementSibling;
+        while (next && next.classList.contains("drag-carried"))
+          next = next.nextElementSibling;
+        return next;
+      };
+
+      function placeDraggedItem() {
+        const d = itemDrag;
+        const listRect = d.list.getBoundingClientRect();
+        const middle =
+          d.y - d.grabY + d.height / 2 - listRect.top + d.list.scrollTop;
+        // A group can only land between groups, never inside one
+        const others = [...d.list.children].filter(
+          (el) =>
+            el !== d.row &&
+            !el.classList.contains("drag-carried") &&
+            (!d.isHead || el.classList.contains("task-group")),
+        );
+        const before =
+          others.find((el) => middle < el.offsetTop + el.offsetHeight / 2) ||
+          null;
+        let current = nextShown(d.row);
+        if (d.isHead)
+          while (current && !current.classList.contains("task-group"))
+            current = nextShown(current);
+        if (current === before) return;
+        slideRows(d.list, () => d.list.insertBefore(d.row, before));
+        renumberTasks(d.list);
+      }
+
+      // Move a DOM node, then glide the rows it displaced into their new place
+      function slideRows(list, change) {
+        const rows = [...list.children].filter(
+          (el) =>
+            !el.classList.contains("drag-carried") &&
+            !el.classList.contains("drag-source"),
+        );
+        const before = new Map(rows.map((el) => [el, el.offsetTop]));
+        change();
+        rows.forEach((el) => {
+          const dy = before.get(el) - el.offsetTop;
+          if (!dy) return;
+          el.style.transition = "none";
+          el.style.transform = `translateY(${dy}px)`;
+          el.getBoundingClientRect();
+          el.style.transition = "transform 0.16s var(--ease)";
+          el.style.transform = "";
         });
-        el.addEventListener("dragleave", () => {
-          el.classList.remove("tab-drag-over");
-        });
-        el.addEventListener("drop", (e) => {
+      }
+
+      function renumberTasks(list) {
+        let n = 0;
+        for (const el of list.children) {
+          if (el.classList.contains("task-group")) n = 0;
+          else if (!el.classList.contains("drag-source")) {
+            n += 1;
+            el.querySelector(".num").textContent = n;
+          }
+        }
+      }
+
+      function autoScrollDrag() {
+        const d = itemDrag;
+        if (!d) return;
+        const r = d.list.getBoundingClientRect();
+        let step = 0;
+        if (d.y < r.top + 28) step = -6;
+        else if (d.y > r.bottom - 28) step = 6;
+        if (step) {
+          d.list.scrollTop += step;
+          placeDraggedItem();
+        }
+        d.raf = requestAnimationFrame(autoScrollDrag);
+      }
+
+      function endItemDrag() {
+        const d = itemDrag;
+        itemDrag = null;
+        cancelAnimationFrame(d.raf);
+        document.body.classList.remove("dragging");
+
+        const carried = new Set(d.carried);
+        const ids = [];
+        for (const el of d.list.children) {
+          if (carried.has(el)) continue;
+          ids.push(el.dataset.id);
+          if (el === d.row) d.carried.forEach((c) => ids.push(c.dataset.id));
+        }
+        // A sync may have replaced the tab while the row was in the air
+        const tab = state.tabs.find((t) => t.id === d.tab.id) || d.tab;
+        const byId = new Map(tab.tasks.map((t) => [t.id, t]));
+        const order = ids.map((id) => byId.get(id)).filter(Boolean);
+        const kept = new Set(order);
+        tab.tasks.forEach((t) => kept.has(t) || order.push(t));
+        const moved = order.some((t, i) => t !== tab.tasks[i]);
+
+        d.ghost.style.transition = "top 0.14s var(--ease), box-shadow 0.14s";
+        d.ghost.style.top = d.row.getBoundingClientRect().top + "px";
+        d.ghost.style.boxShadow = "none";
+        setTimeout(() => d.ghost.remove(), 140);
+
+        tab.tasks = order;
+        if (moved) tasksChanged(tab);
+        renderTasks(tab);
+      }
+
+      function swallowNextClick() {
+        const stop = (e) => {
+          e.stopPropagation();
           e.preventDefault();
-          el.classList.remove("tab-drag-over");
-          const fromId = e.dataTransfer.getData("text/plain");
-          if (fromId === tabId) return;
-          const fromIdx = state.tabs.findIndex((t) => t.id === fromId);
-          const toIdx = state.tabs.findIndex((t) => t.id === tabId);
-          if (fromIdx === -1 || toIdx === -1) return;
-          const [moved] = state.tabs.splice(fromIdx, 1);
-          state.tabs.splice(toIdx, 0, moved);
-          save();
-          render();
+        };
+        window.addEventListener("click", stop, { capture: true, once: true });
+        setTimeout(
+          () => window.removeEventListener("click", stop, { capture: true }),
+          0,
+        );
+      }
+
+      const measure = document.createElement("canvas").getContext("2d");
+      function placeCaret(input, clientX) {
+        input.focus();
+        const style = getComputedStyle(input);
+        measure.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+        const x =
+          clientX - input.getBoundingClientRect().left + input.scrollLeft;
+        let at = input.value.length;
+        for (let i = 1; i <= input.value.length; i++) {
+          const left = measure.measureText(input.value.slice(0, i - 1)).width;
+          const right = measure.measureText(input.value.slice(0, i)).width;
+          if (x < (left + right) / 2) {
+            at = i - 1;
+            break;
+          }
+        }
+        input.setSelectionRange(at, at);
+      }
+
+      // ── DRAGGING TABS ──
+      // Along the tab row a drag reorders. Pulled away from the row in any
+      // direction it opens the note in its own window, which follows the
+      // cursor until release. The tab stays here, and coming back undoes it.
+      const TAB_PULL = 34; // px away from the tab row that tears a tab out
+      let tabDrag = null;
+      let lastTabClick = { id: null, at: 0 };
+      let renamingId = null;
+
+      function onTabMouseDown(e) {
+        const tabEl = e.target.closest(".tab");
+        if (!tabEl || e.button !== 0 || e.ctrlKey) return;
+        if (e.target.closest(".tab-rename-input")) return;
+        const id = tabEl.dataset.id;
+        const onCross = !!e.target.closest(".tab-x");
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const rect = tabEl.getBoundingClientRect();
+
+        const onMove = (ev) => {
+          if (!tabDrag) {
+            if (DETACHED || onCross) return;
+            const moved =
+              Math.abs(ev.clientX - startX) + Math.abs(ev.clientY - startY);
+            if (moved < 5) return;
+            beginTabDrag(id, startX - rect.left, startY - rect.top);
+          }
+          moveTabDrag(ev);
+        };
+        const onUp = () => {
+          window.removeEventListener("mousemove", onMove);
+          window.removeEventListener("mouseup", onUp);
+          if (tabDrag) endTabDrag();
+          else if (onCross) removeTab(id);
+          else onTabClick(id);
+        };
+        window.addEventListener("mousemove", onMove);
+        window.addEventListener("mouseup", onUp);
+      }
+
+      function onTabClick(id) {
+        const now = Date.now();
+        const twice = lastTabClick.id === id && now - lastTabClick.at < 320;
+        lastTabClick = { id: twice ? null : id, at: now };
+        if (id !== state.active) switchTab(id);
+        if (twice) {
+          const label = document.querySelector(
+            `.tab[data-id="${id}"] .tab-label`,
+          );
+          if (label) startInlineRename(id, label);
+        }
+      }
+
+      function beginTabDrag(id, grabX, grabY) {
+        const el = document.querySelector(`.tab[data-id="${id}"]`);
+        el.classList.add("tab-lift");
+        document.body.classList.add("dragging");
+        tabDrag = { id, el, grabX, grabY, away: false, opened: false };
+      }
+
+      function moveTabDrag(ev) {
+        const d = tabDrag;
+        const bar = $("tabScroll");
+        const row = bar.getBoundingClientRect();
+        const outside =
+          ev.clientX < 0 ||
+          ev.clientX >= window.innerWidth ||
+          ev.clientY < row.top - TAB_PULL ||
+          ev.clientY > row.bottom + TAB_PULL;
+        const windowX = ev.screenX - d.grabX;
+        const windowY = ev.screenY - d.grabY;
+
+        if (outside && !d.away) {
+          d.away = true;
+          d.el.classList.add("tab-away");
+          d.el.style.transform = "";
+          sync();
+          writeLocal();
+          const t = state.tabs.find((t) => t.id === d.id);
+          const pending = api.detachTab(tabPayload(t), windowX, windowY);
+          pending.then((r) => {
+            d.opened = r.created;
+          });
+          return;
+        }
+        if (!outside && d.away) {
+          d.away = false;
+          d.el.classList.remove("tab-away");
+          if (d.opened) api.cancelDetach(d.id);
+        }
+        if (d.away) {
+          api.moveDetached(d.id, windowX, windowY);
+          return;
+        }
+
+        const barRect = bar.getBoundingClientRect();
+        const x = ev.clientX - barRect.left + bar.scrollLeft;
+        const others = [...bar.children].filter((el) => el !== d.el);
+        const before =
+          others.find((el) => x < el.offsetLeft + el.offsetWidth / 2) || null;
+        if (d.el.nextElementSibling !== before) {
+          slideTabs(bar, () => bar.insertBefore(d.el, before));
+        }
+        const dx =
+          ev.clientX -
+          d.grabX -
+          (d.el.offsetLeft - bar.scrollLeft + barRect.left);
+        d.el.style.transform = `translateX(${dx}px)`;
+      }
+
+      function slideTabs(bar, change) {
+        const tabs = [...bar.children].filter((el) => !el.classList.contains("tab-lift"));
+        const before = new Map(tabs.map((el) => [el, el.offsetLeft]));
+        change();
+        tabs.forEach((el) => {
+          const dx = before.get(el) - el.offsetLeft;
+          if (!dx) return;
+          el.style.transition = "none";
+          el.style.transform = `translateX(${dx}px)`;
+          el.getBoundingClientRect();
+          el.style.transition = "transform 0.16s var(--ease)";
+          el.style.transform = "";
         });
+      }
+
+      function endTabDrag() {
+        const d = tabDrag;
+        tabDrag = null;
+        document.body.classList.remove("dragging");
+        if (d.away) {
+          api.finishDetach(d.id);
+        } else {
+          const order = [...$("tabScroll").children].map(
+            (el) => el.dataset.id,
+          );
+          const moved = order.some((id, i) => id !== state.tabs[i].id);
+          if (moved) {
+            state.tabs.sort(
+              (a, b) => order.indexOf(a.id) - order.indexOf(b.id),
+            );
+            save();
+          }
+        }
+        renderTabs();
+      }
+
+      // ── DETACHED WINDOWS ──
+      function tabPayload(t) {
+        return {
+          id: t.id,
+          title: t.title,
+          type: t.type,
+          color: t.color,
+          content: t.content,
+          tasks: t.tasks,
+          ts: t.ts,
+        };
+      }
+      const tabSig = (t) =>
+        JSON.stringify([t.title, t.color, t.content, t.tasks]);
+
+      // In the main window: tab id -> what that tab's window already shows
+      const detachedSigs = new Map();
+
+      function pushDetached() {
+        if (DETACHED || !api || !api.pushTab) return;
+        for (const [id, sig] of detachedSigs) {
+          const t = state.tabs.find((t) => t.id === id);
+          if (!t) {
+            api.closeDetached(id);
+            continue;
+          }
+          const now = tabSig(t);
+          if (now !== sig) {
+            detachedSigs.set(id, now);
+            api.pushTab(tabPayload(t));
+          }
+        }
+      }
+
+      function onTabWindows(ids) {
+        for (const id of [...detachedSigs.keys()]) {
+          if (!ids.includes(id)) detachedSigs.delete(id);
+        }
+        for (const id of ids) {
+          if (detachedSigs.has(id)) continue;
+          const t = state.tabs.find((t) => t.id === id);
+          if (t) detachedSigs.set(id, tabSig(t));
+        }
+      }
+
+      function applyDetachedEdit(data) {
+        const t = state.tabs.find((t) => t.id === data.id);
+        if (!t) return;
+        const sig = tabSig(data);
+        if (sig === tabSig(t)) return;
+        Object.assign(t, tabPayload(data), { ts: Date.now() });
+        detachedSigs.set(t.id, sig);
+        if (t.id === state.active) render();
+        else renderTabs();
+        pushFloating(t.id);
+        save();
+      }
+
+      function sendEditToMain() {
+        saveTimer = null;
+        const t = state.tabs[0];
+        if (t) api.sendTabEdit(tabPayload(t));
+      }
+
+      function applyTabUpdate(data) {
+        const t = state.tabs[0];
+        if (!t || t.id !== data.id || tabSig(t) === tabSig(data)) return;
+        Object.assign(t, tabPayload(data));
+        render();
+      }
+
+      // ── HIDE / SHOW TOOLBARS ──
+      function setChromeHidden(hidden) {
+        document.body.classList.toggle("chrome-hidden", hidden);
+        $("unhideIcon").setAttribute(
+          "href",
+          hidden ? "#i-chevron-down" : "#i-chevron-up",
+        );
+        $("unhideBtn").title = (hidden ? "Show" : "Hide") + " toolbar (⌘\\)";
+        if (api && api.setChromeHidden) api.setChromeHidden(hidden);
+        if (!DETACHED) {
+          ui.chromeHidden = hidden;
+          saveUi();
+        }
+      }
+      const toggleChrome = () =>
+        setChromeHidden(!document.body.classList.contains("chrome-hidden"));
+
+      function applyFormatBar() {
+        const active = state.tabs.find((t) => t.id === state.active);
+        const show = ui.formatBar && active && active.type !== "task";
+        $("formatBar").classList.toggle("hidden", !show);
+        $("fmtPill").classList.toggle("on", ui.formatBar);
+      }
+
+      // ── EDITOR ──
+      function readCaret(root) {
+        const sel = window.getSelection();
+        if (!sel.rangeCount || !root.contains(sel.anchorNode)) return null;
+        const range = sel.getRangeAt(0);
+        const offset = (node, at) => {
+          const r = document.createRange();
+          r.selectNodeContents(root);
+          r.setEnd(node, at);
+          return r.toString().length;
+        };
+        return {
+          start: offset(range.startContainer, range.startOffset),
+          end: offset(range.endContainer, range.endOffset),
+        };
+      }
+
+      function writeCaret(root, caret) {
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        const range = document.createRange();
+        let seen = 0;
+        let last = null;
+        let placedStart = false;
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+          last = node;
+          const end = seen + node.length;
+          if (!placedStart && caret.start <= end) {
+            range.setStart(node, caret.start - seen);
+            placedStart = true;
+          }
+          if (placedStart && caret.end <= end) {
+            range.setEnd(node, caret.end - seen);
+            break;
+          }
+          seen = end;
+        }
+        if (!placedStart) {
+          if (!last) return;
+          range.selectNodeContents(last);
+          range.collapse(false);
+        }
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+
+      function showInEditor(tab) {
+        const ed = $("editor");
+        const html = tab.content || "";
+        if (editorTabId !== tab.id) {
+          ed.innerHTML = html;
+          ed.scrollTop = 0;
+          editorTabId = tab.id;
+          editorHtml = html;
+          return;
+        }
+        if (html === editorHtml) return;
+        // The note changed somewhere else (another device or window).
+        // Mid-sentence that can wait; otherwise bring it in and hold the caret.
+        const editing = document.activeElement === ed && document.hasFocus();
+        if (editing && Date.now() - lastKeyAt < 2500) {
+          clearTimeout(deferredRender);
+          deferredRender = setTimeout(render, 2600);
+          return;
+        }
+        const caret = editing ? readCaret(ed) : null;
+        const top = ed.scrollTop;
+        ed.innerHTML = html;
+        editorHtml = html;
+        if (caret) writeCaret(ed, caret);
+        ed.scrollTop = top;
       }
 
       // ── RENDER ──
-      function render() {
-        const bar = $("tabBar");
-        const addBtn = $("addBtn");
-
-        bar.querySelectorAll(".tab").forEach((el) => el.remove());
-
+      function renderTabs() {
+        // Never pull the tab out from under a drag or a rename
+        if (tabDrag || renamingId) return;
+        const bar = $("tabScroll");
+        const scrollLeft = bar.scrollLeft;
+        bar.innerHTML = "";
         state.tabs.forEach((t) => {
-          const el = document.createElement("button");
-          el.className = "tab" + (t.id === state.active ? " active" : "");
+          const el = document.createElement("div");
+          el.className =
+            "tab" +
+            (t.id === state.active ? " active" : "") +
+            (t.color ? " colored" : "");
           el.dataset.id = t.id;
-
-          // Apply tab color
-          if (t.color) {
-            if (t.id === state.active) {
-              el.style.background = t.color;
-              el.style.borderColor = t.color;
-              el.style.color = "#fff";
-            } else {
-              el.style.borderColor = t.color;
-              el.style.borderWidth = "1px";
-              el.style.borderStyle = "solid";
-              el.style.color = t.color;
-            }
-          }
+          if (t.color) el.style.setProperty("--tab-c", t.color);
 
           const label = document.createElement("span");
           label.className = "tab-label";
-          label.textContent = (t.type === "task" ? "☰ " : "") + t.title;
+          if (t.type === "task") label.innerHTML = icon("tasks");
+          const name = document.createElement("span");
+          name.className = "tab-name";
+          name.textContent = t.title;
+          label.appendChild(name);
           el.appendChild(label);
 
-          const x = document.createElement("span");
-          x.className = "tab-x";
-          x.textContent = "✕";
-          x.addEventListener("click", (e) => {
-            e.stopPropagation();
-            removeTab(t.id);
-          });
-          el.appendChild(x);
-
-          // Tab click / double-click
-          let clickTimer = null;
-          el.addEventListener("click", () => {
-            clearTimeout(clickTimer);
-            clickTimer = setTimeout(() => switchTab(t.id), 200);
-          });
-          el.addEventListener("dblclick", (e) => {
-            clearTimeout(clickTimer);
-            e.stopPropagation();
-            if (t.id !== state.active) switchTab(t.id);
-            setTimeout(() => {
-              const lbl = document.querySelector(
-                `.tab[data-id="${t.id}"] .tab-label`,
-              );
-              if (lbl) startInlineRename(t.id, lbl);
-            }, 50);
-          });
-          el.addEventListener("contextmenu", (e) => {
-            e.preventDefault();
-            ctxId = t.id;
-            showCtx(e.clientX, e.clientY);
-          });
-
-          // Tab drag reordering (long press)
-          setupTabDrag(el, t.id);
-
-          bar.insertBefore(el, addBtn);
+          const zone = document.createElement("span");
+          zone.className = "tab-x-zone";
+          zone.innerHTML = `<span class="tab-x" title="Delete">${icon("x")}</span>`;
+          el.appendChild(zone);
+          bar.appendChild(el);
         });
+        bar.scrollLeft = scrollLeft;
+      }
 
+      function render() {
+        renderTabs();
+        applyFormatBar();
         const active = state.tabs.find((t) => t.id === state.active);
         if (active) {
           const isTask = active.type === "task";
           // Show/hide editor vs task view
+          $("editor").style.display = isTask ? "none" : "block";
+          $("taskView").style.display = isTask ? "flex" : "none";
           if (isTask) {
-            $("editor").style.display = "none";
-            $("taskView").style.display = "flex";
-            if (!$("formatBar").classList.contains("hidden")) {
-              $("formatBar").classList.add("hidden");
-            }
-            renderTasks(active);
+            if (!itemDrag) renderTasks(active);
           } else {
-            $("editor").style.display = "block";
-            $("taskView").style.display = "none";
-            if (!$("formatBar").classList.contains("hidden")) {
-              $("formatBar").classList.remove("hidden");
-            }
-            // Avoid clobbering the editor (and snapping the caret to the
-            // start) while the user is actively typing. Only assign when the
-            // editor isn't focused and the content actually differs.
-            const editorEl = $("editor");
-            if (
-              document.activeElement !== editorEl &&
-              editorEl.innerHTML !== active.content
-            ) {
-              editorEl.innerHTML = active.content;
-            }
+            showInEditor(active);
           }
           $("emptyState").style.display = "none";
           const titleEl = $("titleInput");
@@ -1822,9 +2454,9 @@
           ) {
             titleEl.value = active.title;
           }
+          if (DETACHED) document.title = active.title;
           updateInfo();
         } else {
-          $("formatBar").classList.add("hidden");
           $("editor").style.display = "none";
           $("taskView").style.display = "none";
           $("emptyState").style.display = "flex";
@@ -1832,6 +2464,12 @@
       }
 
       function updateInfo() {
+        const active = state.tabs.find((t) => t.id === state.active);
+        if (active && active.type === "task") {
+          const n = (active.tasks || []).filter((t) => !isGroup(t)).length;
+          $("charInfo").textContent = n + (n === 1 ? " task" : " tasks");
+          return;
+        }
         const text = $("editor").innerText || "";
         $("charInfo").textContent = text.length.toLocaleString() + " chars";
       }
@@ -1851,11 +2489,18 @@
         input.value = tab.title;
         input.addEventListener("click", (e) => e.stopPropagation());
 
+        let finished = false;
         const finishRename = () => {
-          const newTitle = input.value.trim() || "Untitled";
-          tab.title = newTitle;
-          $("titleInput").value = newTitle;
-          tabEl.style.width = "";
+          if (finished) return;
+          finished = true;
+          renamingId = null;
+          // Look it up again: a sync may have replaced the object
+          const t = state.tabs.find((t) => t.id === id);
+          if (t) {
+            t.title = input.value.trim() || "Untitled";
+            t.ts = Date.now();
+            if (id === state.active) $("titleInput").value = t.title;
+          }
           save();
           render();
         };
@@ -1872,6 +2517,7 @@
           }
         });
 
+        renamingId = id;
         labelEl.textContent = "";
         labelEl.appendChild(input);
         input.focus();
@@ -1918,7 +2564,11 @@
             ? "<ul>" +
               (t.tasks || [])
                 .filter((k) => (k.text || "").trim())
-                .map((k) => "<li>" + escHtml(k.text) + "</li>")
+                .map((k) =>
+                  isGroup(k)
+                    ? "<li><b>" + escHtml(k.text) + "</b></li>"
+                    : "<li>" + escHtml(k.text) + "</li>",
+                )
                 .join("") +
               "</ul>"
             : t.content || "";
@@ -2037,6 +2687,7 @@
 
       // ── EVENTS ──
       $("editor").addEventListener("input", () => {
+        lastKeyAt = Date.now();
         sync();
         save();
         updateInfo();
@@ -2052,16 +2703,40 @@
         const active = state.tabs.find((t) => t.id === state.active);
         if (active && active.type === "task") addTaskRow(active);
       });
+      $("taskAddGroupBtn").addEventListener("click", () => {
+        const active = state.tabs.find((t) => t.id === state.active);
+        if (active && active.type === "task") addGroupRow(active);
+      });
+      $("tabScroll").addEventListener("mousedown", onTabMouseDown);
+      $("tabScroll").addEventListener("contextmenu", (e) => {
+        const tabEl = e.target.closest(".tab");
+        if (!tabEl) return;
+        e.preventDefault();
+        ctxId = tabEl.dataset.id;
+        showCtx(e.clientX, e.clientY);
+      });
+      $("hideBtn").addEventListener("click", toggleChrome);
+      $("unhideBtn").addEventListener("click", toggleChrome);
+      $("closeWinBtn").addEventListener("click", () => api && api.closeWindow());
+      if (api && api.onCornerPeek) {
+        api.onCornerPeek((on) => $("corner").classList.toggle("peek", on));
+      }
 
       // ── KEYBOARD SHORTCUTS ──
       document.addEventListener("keydown", (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === "\\") {
+          e.preventDefault();
+          toggleChrome();
+        }
         if ((e.metaKey || e.ctrlKey) && e.key === "t") {
           e.preventDefault();
-          addTab();
+          if (!DETACHED) addTab();
         }
         if ((e.metaKey || e.ctrlKey) && e.key === "w") {
           e.preventDefault();
-          if (state.active) removeTab(state.active);
+          // A detached window is a view of the note: closing it deletes nothing
+          if (DETACHED) api.closeWindow();
+          else if (state.active) removeTab(state.active);
         }
         if ((e.metaKey || e.ctrlKey) && e.key === "s") {
           e.preventDefault();
@@ -2097,7 +2772,7 @@
       });
 
       function cycleTab(dir) {
-        if (state.tabs.length < 2) return;
+        if (DETACHED || state.tabs.length < 2) return;
         const idx = state.tabs.findIndex((t) => t.id === state.active);
         const next = (idx + dir + state.tabs.length) % state.tabs.length;
         switchTab(state.tabs[next].id);
@@ -2219,7 +2894,6 @@
       const collapseBtn = $("collapseBtn");
       const expandBtn = $("expandBtn");
       const fmtToggleBtn = $("fmtToggleBtn");
-      const fmtPill = $("fmtPill");
 
       // Settings dropdown
       settingsBtn.addEventListener("click", (e) => {
@@ -2234,11 +2908,9 @@
 
       // Format bar toggle
       fmtToggleBtn.addEventListener("click", () => {
-        const active = state.tabs.find((t) => t.id === state.active);
-        if (active && active.type === "task") return; // no format bar for tasks
-        $("formatBar").classList.toggle("hidden");
-        const isVisible = !$("formatBar").classList.contains("hidden");
-        fmtPill.classList.toggle("on", isVisible);
+        ui.formatBar = !ui.formatBar;
+        saveUi();
+        applyFormatBar();
       });
 
       toggleAOT.addEventListener("click", async () => {
@@ -2306,7 +2978,7 @@
 
       // Init always-on-top pill state
       (async () => {
-        if (window.notesAPI) {
+        if (window.notesAPI && !DETACHED) {
           const aot = await window.notesAPI.getAlwaysOnTop();
           aotPill.classList.toggle("on", aot);
           const collapsed = await window.notesAPI.isCollapsed();
@@ -2492,17 +3164,34 @@
             "remote tabs:",
             remote?.tabs?.length || 0,
           );
+          sync(true); // include anything typed while GitHub was answering
+          const before = state.tabs;
           const merged = mergeStates(state, remote);
+          // mergeStates keeps the same object for every tab it left alone
+          const changed =
+            merged.tabs.length !== before.length ||
+            merged.tabs.some((t, i) => t !== before[i]);
           state = merged;
           state.syncTs = Date.now();
-          localStorage.setItem(KEY, JSON.stringify(state));
-          console.log(
-            "[Sync] pushing merged state…",
-            state.tabs.length,
-            "tabs",
-          );
-          await pushToGist(state);
-          render();
+          if (!state.tabs.some((t) => t.id === state.active)) {
+            state.active = state.tabs.length ? state.tabs[0].id : null;
+          }
+          writeLocal();
+          if (
+            !remote ||
+            JSON.stringify([state.tabs, state.deletedIds]) !==
+              JSON.stringify([remote.tabs, remote.deletedIds])
+          ) {
+            console.log(
+              "[Sync] pushing merged state…",
+              state.tabs.length,
+              "tabs",
+            );
+            await pushToGist(state);
+          }
+          // A sync that brought nothing new must not touch what is on screen
+          if (changed) render();
+          pushDetached();
           setSyncDot("synced");
           syncBackoff = 0;
           console.log("[Sync] done ✓");
@@ -2596,9 +3285,9 @@
           updateSyncUI();
           startSyncLoop();
           msgEl.innerHTML =
-            '✅ Connected! Gist ID: <b style="user-select:all;cursor:pointer">' +
+            'Connected. Gist ID: <b style="user-select:all;cursor:pointer">' +
             syncConfig.gistId +
-            "</b><br><span style='font-size:9px;color:#888'>Copy this ID to connect other devices</span>";
+            "</b><br><span style='font-size:10px;opacity:.7'>Copy this ID to connect other devices</span>";
           // Keep modal open so user can copy the gist ID
           setTimeout(() => $("syncModal").classList.remove("show"), 5000);
         } catch (e) {
@@ -2616,26 +3305,62 @@
       });
 
       // ── INIT ──
-      load();
-      loadSyncConfig();
-      updateSyncUI();
-
-      if (state.tabs.length === 0) {
-        addTab(
-          "Quick Notes",
-          "<b>Welcome to Notes</b><br><br>⌘T  New tab<br>⌘W  Close tab<br>⌘S  Save<br>⌘K  Insert link<br>⌘[  Previous tab<br>⌘]  Next tab<br><br>Right-click tabs for more options.<br>Everything auto-saves to localStorage.",
-        );
-      } else {
+      function startDetachedWindow() {
+        document.body.classList.add("detached");
+        const tab = api.detachedTab(DETACHED);
+        state = {
+          tabs: tab ? [tab] : [],
+          active: DETACHED,
+          deletedIds: [],
+        };
+        setChromeHidden(true);
         render();
+        api.onTabUpdate(applyTabUpdate);
+        // Ready to type as soon as the window lands
+        window.addEventListener(
+          "focus",
+          () => {
+            const ed = $("editor");
+            if (ed.style.display === "none") return;
+            ed.focus();
+            window.getSelection().selectAllChildren(ed);
+            window.getSelection().collapseToEnd();
+          },
+          { once: true },
+        );
       }
 
-      // Start sync if configured
-      if (syncConfig?.token && syncConfig?.gistId) startSyncLoop();
+      function startMainWindow() {
+        load();
+        loadUi();
+        loadSyncConfig();
+        updateSyncUI();
+        setChromeHidden(ui.chromeHidden);
+        if (api && api.onTabEdit) {
+          api.onTabEdit(applyDetachedEdit);
+          api.onTabWindows(onTabWindows);
+        }
 
-      // Sync when window regains focus
-      window.addEventListener("focus", () => {
-        if (syncConfig?.token && syncConfig?.gistId) doSync();
-      });
+        if (state.tabs.length === 0) {
+          addTab(
+            "Quick Notes",
+            "<b>Welcome to Notes</b><br><br>⌘T  New tab<br>⌘W  Close tab<br>⌘S  Save<br>⌘K  Insert link<br>⌘[  Previous tab<br>⌘]  Next tab<br>⌘\\  Hide toolbar<br><br>Right-click tabs for more options.<br>Everything auto-saves to localStorage.",
+          );
+        } else {
+          render();
+        }
+
+        // Start sync if configured
+        if (syncConfig?.token && syncConfig?.gistId) startSyncLoop();
+
+        // Sync when window regains focus
+        window.addEventListener("focus", () => {
+          if (syncConfig?.token && syncConfig?.gistId) doSync();
+        });
+      }
+
+      if (DETACHED) startDetachedWindow();
+      else startMainWindow();
     </script>
   </body>
 </html>
