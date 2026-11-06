@@ -35,7 +35,9 @@
       "**/*",
       "!dist${/*}",
       "!build${/*}",
-      "!integrations${/*}"
+      "!integrations${/*}",
+      "!web-head.html",
+      "!build-web.js"
     ]
   }
 }

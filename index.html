@@ -1150,6 +1150,39 @@
         border-radius: 10px;
       }
 
+      /* ═══ WEBSITE: same app, minus what only a desktop window can do ═══ */
+      body.web {
+        height: 100dvh;
+      }
+      body.web .header {
+        padding-left: 12px;
+      }
+      body.web #collapseBtn,
+      body.web #collapseWinBtn,
+      body.web #closeWinBtn,
+      body.web #toggleAOT,
+      body.web #ctxFloat,
+      body.web #ctxTasks {
+        display: none;
+      }
+      /* Touch has no hover, so what hover reveals stays reachable */
+      @media (hover: none) {
+        .tab-x-zone {
+          display: none;
+        }
+        .task-add-bar {
+          opacity: 1;
+          pointer-events: auto;
+        }
+        .task-list {
+          padding-bottom: 64px;
+        }
+        .corner-pill {
+          opacity: 1;
+          transform: none;
+        }
+      }
+
       /* ═══ TOAST ═══ */
       .toast {
         position: fixed;
@@ -1554,6 +1587,8 @@
       // window stays the only owner of the notes: it saves and syncs them,
       // and a detached window just tells it what changed.
       const DETACHED = new URLSearchParams(location.search).get("tab");
+      // With no desktop bridge this is the website: same app, no window controls
+      if (!api) document.body.classList.add("web");
 
       let state = { tabs: [], active: null, deletedIds: [] };
       let ui = { chromeHidden: false, formatBar: true };
@@ -1889,7 +1924,7 @@
           },
         );
         camBtn.classList.toggle("snapshot-on", !!task.snapshot);
-        actions.appendChild(camBtn);
+        if (api) actions.appendChild(camBtn); // snapshots need the Mac app
 
         // Delete
         actions.appendChild(
@@ -2018,6 +2053,65 @@
         };
         window.addEventListener("mousemove", onMove);
         window.addEventListener("mouseup", onUp);
+      }
+
+      // Touch: hold a task for a moment, then drag it. Scrolling stays normal.
+      function wireTouchDrag() {
+        const list = $("taskList");
+        let hold = null;
+        let dragging = false;
+        const fire = (type, t) =>
+          window.dispatchEvent(
+            new MouseEvent(type, {
+              clientX: t.clientX,
+              clientY: t.clientY,
+              buttons: 1,
+            }),
+          );
+        list.addEventListener(
+          "touchstart",
+          (e) => {
+            const row = e.target.closest(".task-row, .task-group");
+            if (!row || e.target.closest(".task-actions")) return;
+            if (e.target === document.activeElement) return;
+            const { clientX, clientY } = e.touches[0];
+            hold = setTimeout(() => {
+              hold = null;
+              dragging = true;
+              startItemDrag(
+                {
+                  button: 0,
+                  target: row,
+                  clientX,
+                  clientY,
+                  preventDefault() {},
+                },
+                state.tabs.find((t) => t.id === state.active),
+                row,
+              );
+              fire("mousemove", { clientX, clientY: clientY + 6 });
+            }, 320);
+          },
+          { passive: true },
+        );
+        list.addEventListener(
+          "touchmove",
+          (e) => {
+            clearTimeout(hold);
+            if (!dragging) return;
+            e.preventDefault();
+            fire("mousemove", e.touches[0]);
+          },
+          { passive: false },
+        );
+        const end = (e) => {
+          clearTimeout(hold);
+          if (!dragging) return;
+          dragging = false;
+          fire("mouseup", e.changedTouches[0]);
+        };
+        list.addEventListener("touchend", end);
+        list.addEventListener("touchcancel", end);
       }
 
       function beginItemDrag(tab, row, startY, carry) {
@@ -2228,6 +2322,15 @@
       }
 
       function onTabClick(id) {
+        // Touch has no right-click: tapping the open tab shows its menu
+        if (id === state.active && matchMedia("(hover: none)").matches) {
+          const r = document
+            .querySelector(`.tab[data-id="${id}"]`)
+            .getBoundingClientRect();
+          ctxId = id;
+          setTimeout(() => showCtx(r.left, r.bottom + 6), 60);
+          return;
+        }
         const now = Date.now();
         const twice = lastTabClick.id === id && now - lastTabClick.at < 320;
         lastTabClick = { id: twice ? null : id, at: now };
@@ -2252,10 +2355,11 @@
         const bar = $("tabScroll");
         const row = bar.getBoundingClientRect();
         const outside =
-          ev.clientX < 0 ||
-          ev.clientX >= window.innerWidth ||
-          ev.clientY < row.top - TAB_PULL ||
-          ev.clientY > row.bottom + TAB_PULL;
+          !!api &&
+          (ev.clientX < 0 ||
+            ev.clientX >= window.innerWidth ||
+            ev.clientY < row.top - TAB_PULL ||
+            ev.clientY > row.bottom + TAB_PULL);
         const windowX = ev.screenX - d.grabX;
         const windowY = ev.screenY - d.grabY;
 
@@ -2506,6 +2610,7 @@
       }
 
       const canMoveWindow = (e) =>
+        !!api &&
         e.button === 0 &&
         !e.shiftKey &&
         !e.ctrlKey &&
@@ -3339,7 +3444,10 @@
 
       function updateSyncUI() {
         const label = $("syncConfigLabel");
-        if (syncConfig && syncConfig.token && syncConfig.gistId) {
+        if (tokenRejected) {
+          label.textContent = "Token rejected";
+          label.style.color = "var(--danger)";
+        } else if (syncConfig && syncConfig.token && syncConfig.gistId) {
           label.textContent = "Connected";
           label.style.color = "#4a4";
         } else {
@@ -3358,6 +3466,33 @@
         else s.textContent = "—";
       }
 
+      // Live sync: ask GitHub every few seconds whether the gist changed. An
+      // unchanged answer (304) doesn't count against the rate limit.
+      let gistEtag = null;
+      let pollTimer = null;
+      let tokenRejected = false;
+
+      async function pollGist() {
+        if (isSyncing || tokenRejected || document.hidden) return;
+        if (!syncConfig?.token || !syncConfig?.gistId) return;
+        const headers = {
+          Authorization: "Bearer " + syncConfig.token,
+          Accept: "application/vnd.github.v3+json",
+        };
+        if (gistEtag) headers["If-None-Match"] = gistEtag;
+        try {
+          const res = await fetch(
+            "https://api.github.com/gists/" + syncConfig.gistId,
+            { headers, cache: "no-store" },
+          );
+          if (!res.ok) return; // 304, or an error doSync will report
+          gistEtag = res.headers.get("ETag");
+          doSync();
+        } catch (e) {
+          /* offline: the next poll tries again */
+        }
+      }
+
       async function gistRequest(method, url, body) {
         const opts = {
           method,
@@ -3366,6 +3501,7 @@
             Accept: "application/vnd.github.v3+json",
             "Content-Type": "application/json",
           },
+          cache: "no-store",
         };
         if (body) opts.body = JSON.stringify(body);
         const res = await fetch(url, opts);
@@ -3524,6 +3660,8 @@
           pushDetached();
           setSyncDot("synced");
           syncBackoff = 0;
+          tokenRejected = false;
+          updateSyncUI();
           console.log("[Sync] done ✓");
         } catch (e) {
           console.error("[Sync] failed:", e);
@@ -3539,7 +3677,11 @@
               gistSyncTimer = setInterval(doSync, 60000);
             }, syncBackoff * 1000);
           } else {
-            s.textContent = "error: " + (e.message || e);
+            tokenRejected = /\b401\b/.test(e.message || "");
+            s.textContent = tokenRejected
+              ? "token rejected, press sync"
+              : "error: " + (e.message || e);
+            updateSyncUI();
           }
           s.title = String(e);
         }
@@ -3553,6 +3695,8 @@
       }
 
       function startSyncLoop() {
+        clearInterval(pollTimer);
+        pollTimer = setInterval(pollGist, 4000);
         if (gistSyncTimer) clearInterval(gistSyncTimer);
         if (syncConfig?.token && syncConfig?.gistId) {
           doSync();
@@ -3597,6 +3741,7 @@
         msgEl.className = "sync-status-msg success";
         msgEl.style.display = "block";
         $("syncSave").disabled = true;
+        const previous = syncConfig;
         try {
           syncConfig = { token };
           if (gistId) {
@@ -3612,6 +3757,8 @@
             $("syncGistInput").value = gist.id;
           }
           saveSyncConfig();
+          tokenRejected = false;
+          gistEtag = null;
           updateSyncUI();
           startSyncLoop();
           msgEl.innerHTML =
@@ -3624,14 +3771,24 @@
           console.error("[Sync] setup failed:", e);
           msgEl.textContent = "Failed: " + e.message;
           msgEl.className = "sync-status-msg error";
-          syncConfig = null;
+          syncConfig = previous;
         }
         $("syncSave").disabled = false;
       });
 
       $("syncNowBtn").addEventListener("click", () => {
-        if (syncConfig?.token && syncConfig?.gistId) doSync();
-        else $("openSyncSettings").click();
+        if (syncConfig?.token && syncConfig?.gistId && !tokenRejected) {
+          doSync();
+          return;
+        }
+        $("openSyncSettings").click();
+        if (tokenRejected) {
+          const msg = $("syncStatusMsg");
+          msg.textContent =
+            "GitHub rejected this token. Paste a new one with gist scope.";
+          msg.className = "sync-status-msg error";
+          msg.style.display = "block";
+        }
       });
 
       // ── INIT ──
@@ -3671,7 +3828,8 @@
           api.onTabWindows(onTabWindows);
         }
 
-        if (state.tabs.length === 0) {
+        // A new phone starts empty, so its first sync can't add a welcome note
+        if (state.tabs.length === 0 && api) {
           addTab(
             "Quick Notes",
             "<b>Welcome to Notes</b><br><br>⌘T  New tab<br>⌘W  Close tab<br>⌘S  Save<br>⌘K  Insert link<br>⌘[  Previous tab<br>⌘]  Next tab<br>⌘\\  Hide toolbar<br><br>Right-click tabs for more options.<br>Everything auto-saves to localStorage.",
@@ -3687,6 +3845,20 @@
         window.addEventListener("focus", () => {
           if (syncConfig?.token && syncConfig?.gistId) doSync();
         });
+
+        // A phone can freeze the page the moment it leaves the screen
+        document.addEventListener("visibilitychange", () => {
+          if (document.hidden) {
+            sync();
+            writeLocal();
+          }
+          if (syncConfig?.token && syncConfig?.gistId) doSync();
+        });
+
+        if (!api) {
+          wireTouchDrag();
+          if (navigator.storage?.persist) navigator.storage.persist();
+        }
       }
 
       if (DETACHED) startDetachedWindow();
