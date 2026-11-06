@@ -10,16 +10,16 @@
     <title>Notes</title>
     <style>
       :root {
-        --bg: #0f0f11;
-        --chrome: #16161a;
-        --surface: #1b1b20;
-        --surface-2: #25252b;
-        --surface-3: #303037;
-        --float: #222227;
-        --text: #ececf1;
-        --text-2: #a3a3ad;
-        --text-3: #6c6c78;
-        --accent: #8b9bff;
+        --bg: #000000;
+        --chrome: #171717;
+        --surface: #1c1c1c;
+        --surface-2: #282828;
+        --surface-3: #363636;
+        --float: #222222;
+        --text: #ededed;
+        --text-2: #a3a3a3;
+        --text-3: #737373;
+        --accent: #e5e5e5;
         --danger: #ff6b6b;
         --ok: #4ade80;
         --warn: #fbbf24;
@@ -43,7 +43,7 @@
         background: none;
       }
       ::selection {
-        background: rgba(139, 155, 255, 0.3);
+        background: rgba(255, 255, 255, 0.24);
       }
       body {
         font-family:
@@ -126,8 +126,8 @@
         display: none;
         position: fixed;
         top: 0;
-        left: 0;
-        right: 0;
+        left: 74px;
+        right: 74px;
         height: 16px;
         z-index: 40;
         -webkit-app-region: drag;
@@ -150,6 +150,17 @@
       body.chrome-hidden .corner,
       body.detached .corner {
         display: block;
+      }
+      body.detached:not(.chrome-hidden) .corner-left {
+        display: none;
+      }
+      .corner-left {
+        left: 0;
+        right: auto;
+      }
+      .corner-left .corner-pill {
+        left: 6px;
+        right: auto;
       }
       .corner-pill {
         position: absolute;
@@ -558,6 +569,7 @@
         overflow-y: auto;
         word-wrap: break-word;
         white-space: pre-wrap;
+        zoom: var(--note-zoom, 1);
         transition: padding-top 0.26s var(--ease);
       }
       body.chrome-hidden .editor {
@@ -573,11 +585,11 @@
       }
       .editor a {
         color: var(--accent);
-        text-decoration: none;
+        text-decoration: underline;
         cursor: pointer;
       }
       .editor a:hover {
-        text-decoration: underline;
+        color: #fff;
       }
       .editor ul,
       .editor ol {
@@ -620,7 +632,7 @@
       }
       .link-modal input:focus,
       .sync-modal-box input:focus {
-        box-shadow: 0 0 0 2px rgba(139, 155, 255, 0.35);
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.24);
       }
       .link-modal-btns,
       .sync-modal-btns {
@@ -655,7 +667,7 @@
       }
       .link-modal-btns button.primary:hover,
       .sync-modal-btns button.primary:hover {
-        background: #dcdce2;
+        background: #dcdcdc;
       }
       .sync-modal-btns button.danger {
         background: rgba(255, 107, 107, 0.14);
@@ -896,6 +908,7 @@
       }
       body.detached #ctxDuplicate,
       body.detached #ctxFloat,
+      body.detached #ctxTasks,
       body.detached #ctxDelete {
         display: none;
       }
@@ -928,7 +941,7 @@
         user-select: none;
       }
       .task-row {
-        height: 36px;
+        height: calc(36px * var(--note-zoom, 1));
         border-radius: 10px;
         background: var(--surface);
         box-shadow: var(--shadow-sm);
@@ -938,7 +951,7 @@
         background: var(--surface-2);
       }
       .task-group {
-        height: 30px;
+        height: calc(30px * var(--note-zoom, 1));
         margin-top: 12px;
         border-radius: 8px;
       }
@@ -978,7 +991,7 @@
         flex: 1;
         min-width: 0;
         color: var(--text);
-        font-size: 12.5px;
+        font-size: calc(12.5px * var(--note-zoom, 1));
         padding: 0;
         cursor: text;
       }
@@ -989,7 +1002,7 @@
         pointer-events: none;
       }
       .task-group .task-text {
-        font-size: 11px;
+        font-size: calc(11px * var(--note-zoom, 1));
         font-weight: 600;
         letter-spacing: 0.05em;
         text-transform: uppercase;
@@ -1036,6 +1049,12 @@
         position: relative;
         flex-shrink: 0;
         margin: 4px 10px 10px;
+        opacity: 0;
+        transition: opacity 0.14s;
+      }
+      .task-add-row:hover,
+      .task-list:empty + .task-add-row {
+        opacity: 1;
       }
       .task-add-btn {
         width: 100%;
@@ -1097,6 +1116,33 @@
         border-radius: 10px;
       }
 
+      /* ═══ TOAST ═══ */
+      .toast {
+        position: fixed;
+        left: 50%;
+        bottom: 34px;
+        width: max-content;
+        max-width: calc(100% - 28px);
+        padding: 8px 12px;
+        border-radius: 10px;
+        background: var(--float);
+        color: var(--text);
+        font-size: 11.5px;
+        line-height: 1.35;
+        box-shadow: var(--shadow-md);
+        opacity: 0;
+        transform: translate(-50%, 8px);
+        pointer-events: none;
+        z-index: 10002;
+        transition:
+          opacity 0.16s,
+          transform 0.24s var(--ease);
+      }
+      .toast.show {
+        opacity: 1;
+        transform: translate(-50%, 0);
+      }
+
       /* ═══ DETACHED WINDOW: one tab, nothing else ═══ */
       body.detached .header,
       body.detached .tab-tools {
@@ -1148,19 +1194,6 @@
     <!-- COLLAPSED VIEW (shows only when collapsed) -->
     <div class="collapsed-view" id="collapsedView">
       <div class="mini-logo" id="expandBtn" title="Expand Notes">N</div>
-    </div>
-
-    <!-- SHOWN WHEN THE TOOLBAR IS HIDDEN -->
-    <div class="grab-strip"></div>
-    <div class="corner" id="corner">
-      <div class="corner-pill">
-        <button class="icon-btn" id="unhideBtn" title="Show toolbar (⌘\)">
-          <svg class="i"><use id="unhideIcon" href="#i-chevron-down" /></svg>
-        </button>
-        <button class="icon-btn" id="closeWinBtn" title="Close window">
-          <svg class="i"><use href="#i-x" /></svg>
-        </button>
-      </div>
     </div>
 
     <!-- TOOLBARS -->
@@ -1226,10 +1259,10 @@
           </select>
           <div class="fmt-gap"></div>
           <div class="fmt-color text-color" title="Text color">
-            <input type="color" id="fmtColor" value="#ececf1" />
+            <input type="color" id="fmtColor" value="#ededed" />
           </div>
           <div class="fmt-color highlight-color" title="Highlight">
-            <input type="color" id="fmtHighlight" value="#303037" />
+            <input type="color" id="fmtHighlight" value="#363636" />
           </div>
           <div class="fmt-gap"></div>
           <button class="fmt-btn" id="fmtUL" title="Bullet list">
@@ -1259,7 +1292,7 @@
       </button>
       <button class="settings-item" id="openTpSettings">
         <svg class="i"><use href="#i-mic" /></svg>
-        <span class="grow">Teleprompter</span>
+        <span class="grow">AI &amp; Teleprompter</span>
         <span class="hint" id="tpConfigLabel">No key</span>
       </button>
       <button class="settings-item" id="openSyncSettings">
@@ -1316,10 +1349,11 @@
     <!-- TELEPROMPTER SETTINGS MODAL -->
     <div class="sync-modal" id="tpModal">
       <div class="sync-modal-box">
-        <h3>Teleprompter</h3>
+        <h3>AI &amp; Teleprompter</h3>
         <p class="subtitle">
-          Floating notes can follow your voice. Your speech is sent to OpenAI
-          only while a floating note is listening.
+          Your OpenAI key lets floating notes follow your voice and turns notes
+          into tasks. Speech or note text is sent to OpenAI only when you use
+          those.
         </p>
         <label>OpenAI API key</label>
         <div class="field-row">
@@ -1404,6 +1438,8 @@
       <button onclick="addTab()">New note</button>
     </div>
 
+    <div class="toast" id="toast"></div>
+
     <!-- STATUS BAR -->
     <div class="status">
       <span id="charInfo">0 chars</span>
@@ -1423,6 +1459,9 @@
       <button class="ctx-item" id="ctxFloat">
         <svg class="i"><use href="#i-window" /></svg>Open floating window
       </button>
+      <button class="ctx-item" id="ctxTasks">
+        <svg class="i"><use href="#i-tasks" /></svg>Turn into tasks
+      </button>
       <div class="ctx-swatches">
         <span class="ctx-color" data-color="" title="None"></span>
         <span class="ctx-color" data-color="#e74c3c" style="background: #e74c3c" title="Red"></span>
@@ -1439,6 +1478,30 @@
       <button class="ctx-item danger" id="ctxDelete">
         <svg class="i"><use href="#i-trash" /></svg>Delete
       </button>
+    </div>
+
+    <!-- Must stay after the toolbars: macOS applies drag regions in page order,
+         so anything earlier loses its clicks to a toolbar's drag region. -->
+    <div class="grab-strip"></div>
+    <div class="corner corner-left" id="cornerLeft">
+      <div class="corner-pill">
+        <button class="icon-btn" id="zoomOutBtn" title="Smaller">
+          <svg class="i"><use href="#i-minus" /></svg>
+        </button>
+        <button class="icon-btn" id="zoomInBtn" title="Bigger">
+          <svg class="i"><use href="#i-plus" /></svg>
+        </button>
+      </div>
+    </div>
+    <div class="corner" id="corner">
+      <div class="corner-pill">
+        <button class="icon-btn" id="unhideBtn" title="Show toolbar (⌘\)">
+          <svg class="i"><use id="unhideIcon" href="#i-chevron-down" /></svg>
+        </button>
+        <button class="icon-btn" id="closeWinBtn" title="Close window">
+          <svg class="i"><use href="#i-x" /></svg>
+        </button>
+      </div>
     </div>
 
     <script>
@@ -1875,20 +1938,30 @@
       function startItemDrag(e, tab, row) {
         if (e.button !== 0 || e.target.closest(".task-actions")) return;
         const input = e.target.closest(".task-text");
-        // Already editing this text: the mouse selects it as usual
-        if (input && document.activeElement === input) return;
-        e.preventDefault();
-        const editing = document.activeElement;
-        if (editing && editing.classList.contains("task-text")) editing.blur();
+        // Already editing this text: the mouse selects it as usual, unless it
+        // clearly heads up or down, which never selects anything in one line.
+        const selecting = !!input && document.activeElement === input;
+        if (!selecting) {
+          e.preventDefault();
+          const editing = document.activeElement;
+          if (editing && editing.classList.contains("task-text"))
+            editing.blur();
+        }
 
+        const carry = e.altKey;
         const startX = e.clientX;
         const startY = e.clientY;
         const onMove = (ev) => {
           if (!itemDrag) {
-            const moved =
-              Math.abs(ev.clientX - startX) + Math.abs(ev.clientY - startY);
-            if (moved < 5) return;
-            beginItemDrag(tab, row, startY);
+            const dx = Math.abs(ev.clientX - startX);
+            const dy = Math.abs(ev.clientY - startY);
+            const started = selecting ? dy > 10 && dy > dx : dx + dy >= 5;
+            if (!started) return;
+            if (selecting) {
+              input.setSelectionRange(input.selectionEnd, input.selectionEnd);
+              input.blur();
+            }
+            beginItemDrag(tab, row, startY, carry);
           }
           itemDrag.y = ev.clientY;
           itemDrag.ghost.style.top = itemDrag.y - itemDrag.grabY + "px";
@@ -1900,7 +1973,7 @@
           if (itemDrag) {
             endItemDrag();
             swallowNextClick();
-          } else if (input) {
+          } else if (input && !selecting) {
             placeCaret(input, ev.clientX);
           }
         };
@@ -1908,13 +1981,13 @@
         window.addEventListener("mouseup", onUp);
       }
 
-      function beginItemDrag(tab, row, startY) {
+      function beginItemDrag(tab, row, startY, carry) {
         const list = $("taskList");
         const rect = row.getBoundingClientRect();
-        const isHead = row.classList.contains("task-group");
-        // A group travels with its tasks
+        // A title moves alone, so it can sit anywhere among the tasks.
+        // Holding Option brings the tasks under it along.
         const carried = [];
-        if (isHead) {
+        if (carry && row.classList.contains("task-group")) {
           for (
             let el = row.nextElementSibling;
             el && !el.classList.contains("task-group");
@@ -1938,7 +2011,6 @@
           list,
           ghost,
           carried,
-          isHead,
           y: startY,
           grabY: startY - rect.top,
           height: rect.height,
@@ -1958,21 +2030,13 @@
         const listRect = d.list.getBoundingClientRect();
         const middle =
           d.y - d.grabY + d.height / 2 - listRect.top + d.list.scrollTop;
-        // A group can only land between groups, never inside one
         const others = [...d.list.children].filter(
-          (el) =>
-            el !== d.row &&
-            !el.classList.contains("drag-carried") &&
-            (!d.isHead || el.classList.contains("task-group")),
+          (el) => el !== d.row && !el.classList.contains("drag-carried"),
         );
         const before =
           others.find((el) => middle < el.offsetTop + el.offsetHeight / 2) ||
           null;
-        let current = nextShown(d.row);
-        if (d.isHead)
-          while (current && !current.classList.contains("task-group"))
-            current = nextShown(current);
-        if (current === before) return;
+        if (nextShown(d.row) === before) return;
         slideRows(d.list, () => d.list.insertBefore(d.row, before));
         renumberTasks(d.list);
       }
@@ -2301,6 +2365,39 @@
         render();
       }
 
+      // ── NOTE SIZE ──
+      // How big a note looks on this Mac, remembered per note. It scales the
+      // view only: the note's text and any sizes set inside it stay the same.
+      const ZOOM_KEY = "notes-zoom";
+      const ZOOM_STEPS = [0.8, 0.9, 1, 1.1, 1.25, 1.4, 1.6, 1.8, 2];
+
+      function readZooms() {
+        try {
+          return JSON.parse(localStorage.getItem(ZOOM_KEY)) || {};
+        } catch (e) {
+          return {};
+        }
+      }
+
+      function applyZoom() {
+        document.documentElement.style.setProperty(
+          "--note-zoom",
+          readZooms()[state.active] || 1,
+        );
+      }
+
+      function stepZoom(dir) {
+        const zooms = readZooms();
+        const at = ZOOM_STEPS.indexOf(zooms[state.active] || 1);
+        const next = Math.max(
+          0,
+          Math.min(ZOOM_STEPS.length - 1, at + dir),
+        );
+        zooms[state.active] = ZOOM_STEPS[next];
+        localStorage.setItem(ZOOM_KEY, JSON.stringify(zooms));
+        applyZoom();
+      }
+
       // ── HIDE / SHOW TOOLBARS ──
       function setChromeHidden(hidden) {
         document.body.classList.toggle("chrome-hidden", hidden);
@@ -2435,6 +2532,7 @@
       function render() {
         renderTabs();
         applyFormatBar();
+        applyZoom();
         const active = state.tabs.find((t) => t.id === state.active);
         if (active) {
           const isTask = active.type === "task";
@@ -2587,6 +2685,103 @@
         if (t) window.notesAPI.openFloating(floatNote(t));
       };
 
+      // ── NOTE TO TASKS ──
+      // The note stays as it is: the tasks arrive in a new tab right after it.
+      let convertingId = null;
+      let toastTimer = null;
+
+      function toast(text, sticky) {
+        const el = $("toast");
+        clearTimeout(toastTimer);
+        el.textContent = text;
+        el.classList.add("show");
+        if (!sticky) {
+          toastTimer = setTimeout(() => el.classList.remove("show"), 3200);
+        }
+      }
+
+      // innerText only sees line breaks in text that is laid out on the page
+      function noteText(tab) {
+        const box = document.createElement("div");
+        box.style.cssText =
+          "position:fixed;left:-9999px;top:0;width:600px;white-space:pre-wrap";
+        box.innerHTML = tab.content || "";
+        document.body.appendChild(box);
+        const text = box.innerText.trim();
+        box.remove();
+        return text;
+      }
+
+      function tasksFromGroups(groups) {
+        const named = (g) => !!g.title.trim();
+        const tasks = [];
+        [
+          ...groups.filter((g) => !named(g)),
+          ...groups.filter(named),
+        ].forEach((g) => {
+          const items = g.tasks.map((t) => t.trim()).filter(Boolean);
+          if (!items.length) return;
+          if (named(g)) {
+            tasks.push({
+              id: uid(),
+              text: g.title.trim(),
+              kind: "group",
+              snapshot: null,
+            });
+          }
+          items.forEach((text) =>
+            tasks.push({ id: uid(), text, snapshot: null }),
+          );
+        });
+        return tasks;
+      }
+
+      async function turnIntoTasks(id) {
+        if (convertingId) return;
+        if (id === state.active) sync();
+        const src = state.tabs.find((t) => t.id === id);
+        if (!src || src.type === "task") return;
+        const text = noteText(src);
+        if (!text) {
+          toast("This note is empty");
+          return;
+        }
+        convertingId = id;
+        toast("Turning note into tasks…", true);
+        const reply = await api.noteToTasks(text);
+        convertingId = null;
+        if (!reply.ok) {
+          toast(reply.error);
+          if (reply.needsKey) openAiSettings(reply.error);
+          return;
+        }
+        const tasks = tasksFromGroups(reply.groups);
+        const count = tasks.filter((t) => !isGroup(t)).length;
+        if (!count) {
+          toast("No tasks found in this note");
+          return;
+        }
+        const tab = {
+          id: uid(),
+          title: src.title,
+          content: "",
+          type: "task",
+          tasks,
+          ts: Date.now(),
+        };
+        const at = state.tabs.findIndex((t) => t.id === id);
+        state.tabs.splice(at === -1 ? state.tabs.length : at + 1, 0, tab);
+        switchTab(tab.id);
+        toast(
+          count + (count === 1 ? " task" : " tasks") + " added. Your note is unchanged.",
+        );
+      }
+
+      $("ctxTasks").onclick = () => {
+        hideCtx();
+        turnIntoTasks(ctxId);
+      };
+
       // ── TELEPROMPTER SETTINGS ──
       async function updateTpLabel() {
         if (!window.notesAPI || !window.notesAPI.getTeleprompterConfig) {
@@ -2597,16 +2792,20 @@
         const c = await window.notesAPI.getTeleprompterConfig();
         $("tpConfigLabel").textContent = c && c.openaiKey ? "Key set" : "No key";
       }
-      $("openTpSettings").addEventListener("click", async () => {
+      async function openAiSettings(message) {
         $("settingsDropdown").classList.remove("show");
         const c = (await window.notesAPI.getTeleprompterConfig()) || {};
         $("tpKeyInput").value = c.openaiKey || "";
         $("tpKeyInput").type = "password";
         $("tpKeyShow").textContent = "Show";
         $("tpLangInput").value = c.language || "en";
-        $("tpStatusMsg").style.display = "none";
+        const msg = $("tpStatusMsg");
+        msg.style.display = message ? "block" : "none";
+        msg.textContent = message || "";
+        msg.className = "sync-status-msg error";
         $("tpModal").classList.add("show");
-      });
+      }
+      $("openTpSettings").addEventListener("click", () => openAiSettings());
       $("tpKeyShow").addEventListener("click", () => {
         const inp = $("tpKeyInput");
         const show = inp.type === "password";
@@ -2713,14 +2912,25 @@
         if (!tabEl) return;
         e.preventDefault();
         ctxId = tabEl.dataset.id;
+        const tab = state.tabs.find((t) => t.id === ctxId);
+        $("ctxTasks").style.display =
+          tab && tab.type === "task" ? "none" : "";
         showCtx(e.clientX, e.clientY);
       });
       $("hideBtn").addEventListener("click", toggleChrome);
       $("unhideBtn").addEventListener("click", toggleChrome);
       $("closeWinBtn").addEventListener("click", () => api && api.closeWindow());
       if (api && api.onCornerPeek) {
-        api.onCornerPeek((on) => $("corner").classList.toggle("peek", on));
+        api.onCornerPeek((side) => {
+          $("corner").classList.toggle("peek", side === "right");
+          $("cornerLeft").classList.toggle("peek", side === "left");
+        });
       }
+      $("zoomOutBtn").addEventListener("click", () => stepZoom(-1));
+      $("zoomInBtn").addEventListener("click", () => stepZoom(1));
+      window.addEventListener("storage", (e) => {
+        if (e.key === ZOOM_KEY) applyZoom();
+      });
 
       // ── KEYBOARD SHORTCUTS ──
       document.addEventListener("keydown", (e) => {

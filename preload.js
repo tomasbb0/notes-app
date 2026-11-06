@@ -30,6 +30,9 @@ contextBridge.exposeInMainWorld("notesAPI", {
   closeWindow: () => ipcRenderer.invoke("close-window"),
   onCornerPeek: (cb) => ipcRenderer.on("corner-peek", (_, on) => cb(on)),
 
+  // Turn a note into a task list (uses the OpenAI key in the main process)
+  noteToTasks: (text) => ipcRenderer.invoke("note-to-tasks", text),
+
   // Floating note (teleprompter)
   openFloating: (note) => ipcRenderer.invoke("float-open", note),
   noteUpdated: (note) => ipcRenderer.invoke("float-note-updated", note),
